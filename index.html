@@ -232,8 +232,12 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 
     <div class="panel">
       <h3>Добавить видео</h3>
-      <label>Ссылки на видеофайлы (MP4, WebM), по одной в строке<textarea id="urlInput" rows="3" placeholder="videos/clip1.mp4 или https://…/video.mp4" inputmode="url" autocapitalize="off"></textarea></label>
-      <button class="btn" type="button" id="addUrl"><svg class="i"><use href="#i-plus"/></svg>Добавить видео</button>
+      <button class="btn ghost" type="button" id="pickVideos"><svg class="i"><use href="#i-up"/></svg>Выбрать MP4 с устройства</button>
+      <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,video/*,.mp4,.m4v,.mov,.webm" multiple>
+      <div class="row" id="vDraftRow" hidden><span id="vDraftInfo"></span><button class="btn ghost" type="button" id="clearVDraft">Очистить</button></div>
+      <label>Или ссылки на видео (прямая ссылка на MP4/WebM либо на HTML-страницу с видео), по одной в строке<textarea id="urlInput" rows="3" placeholder="videos/clip1.mp4, https://…/video.mp4 или https://…/page.html" inputmode="url" autocapitalize="off"></textarea></label>
+      <button class="btn red" type="button" id="addUrl"><svg class="i"><use href="#i-plus"/></svg>Опубликовать видео</button>
+      <p class="warn">С устройства: до 90 МБ на файл (лимит GitHub). Без подключённого GitHub видео с устройства видно только до перезагрузки страницы.</p>
     </div>
 
     <div class="panel">
@@ -489,27 +493,71 @@ function checkPlayable(url) {
 }
 const BLOCKED_HOSTS = /(^|\.)(youtube\.com|youtu\.be|tiktok\.com|instagram\.com|vk\.com|vk\.ru|facebook\.com|fb\.watch|rutube\.ru)$/i;
 const CANT_IMPORT = 'Эту ссылку нельзя импортировать напрямую. Для импорта понадобится серверная интеграция или загрузка собственного MP4-файла.';
+let videoDraft = [];
+const VIDEO_EXT = /\.(mp4|webm|m4v|mov|ogv)$/i, MAX_VIDEO = 90 * 1024 * 1024;
+function renderVDraft() { $('#vDraftRow').hidden = !videoDraft.length; $('#vDraftInfo').textContent = 'Выбрано с устройства: ' + videoDraft.length; }
+function absUrl(base, v) { try { return new URL(v, base).href; } catch (e) { return null; } }
+// Ссылка может вести на сам файл или на HTML-страницу с видео
+async function resolveVideoUrl(raw) {
+  let u; try { u = new URL(raw, location.href); } catch (e) { return null; }
+  if (!/^https?:$/.test(u.protocol) || BLOCKED_HOSTS.test(u.hostname)) return null;
+  if (await checkPlayable(u.href)) return !/^https?:/i.test(raw) ? raw : u.href;
+  if (VIDEO_EXT.test(u.pathname)) return null;
+  try { // ищем видео внутри HTML-страницы (работает, если сайт разрешает чтение)
+    const r = await fetch(u.href); if (!r.ok) return null;
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html'), c = [];
+    doc.querySelectorAll('meta[property^="og:video"],meta[name="twitter:player:stream"]').forEach(m => c.push(m.content));
+    doc.querySelectorAll('video[src],video source[src]').forEach(m => c.push(m.getAttribute('src')));
+    doc.querySelectorAll('a[href]').forEach(m => { if (VIDEO_EXT.test((m.getAttribute('href') || '').split(/[?#]/)[0])) c.push(m.getAttribute('href')); });
+    for (const x of [...new Set(c)].map(x => absUrl(u.href, x)).filter(x => x && /^https?:/.test(x) && !/\.(html?|php)(\?|$)/i.test(x))) if (await checkPlayable(x)) return x;
+  } catch (e) {}
+  return null;
+}
 async function addByUrl() {
   const date = $('#dateInput').value;
   if (!date) return setAdminMsg('Выберите дату публикации.', 'bad');
   const raws = $('#urlInput').value.split('\n').map(x => x.trim()).filter(Boolean);
-  if (!raws.length) return setAdminMsg('Вставьте ссылку на видео.', 'bad');
-  if (raws.length > 20) return setAdminMsg('За раз не больше 20 ссылок.', 'bad');
-  const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [];
-  for (let i = 0; i < raws.length; i++) {
-    const raw = raws[i]; setAdminMsg('Проверяем ссылки: ' + (i + 1) + ' из ' + raws.length);
-    let u; try { u = new URL(raw, location.href); } catch (e) { bad.push(raw); continue; }
-    if (!/^https?:$/.test(u.protocol) || BLOCKED_HOSTS.test(u.hostname) || !/\.(mp4|webm|m4v|mov|ogv)$/i.test(u.pathname)) { bad.push(raw); continue; }
-    if (!(await checkPlayable(u.href))) { bad.push(raw); continue; }
-    videos.push({ id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: /^https?:/i.test(raw) ? u.href : raw, date }); ok++;
+  if (!raws.length && !videoDraft.length) return setAdminMsg('Выберите видео с устройства или вставьте ссылку.', 'bad');
+  if (raws.length > 20 || videoDraft.length > 20) return setAdminMsg('За раз не больше 20 видео.', 'bad');
+  const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [], failMsg = '';
+  // 1) Файлы с устройства
+  if (videoDraft.length) {
+    const box = $('#upList'); box.replaceChildren();
+    const rows = videoDraft.map(d => { const r = el('div', 'up wait'), t = el('div', 't'), p = el('span', 'p', 'В очереди'); t.append(el('span', 'n', d.name || 'видео'), p); const bar = el('div', 'bar'); bar.append(document.createElement('i')); r.append(t, bar); box.append(r); return { r, p, b: bar.firstChild }; });
+    const left = [];
+    for (let i = 0; i < videoDraft.length; i++) {
+      const d = videoDraft[i], row = rows[i];
+      if (failMsg) { left.push(d); continue; }
+      row.r.className = 'up run'; row.p.textContent = ghOn() ? '0%' : 'Добавляем…';
+      try {
+        const id = 'v' + Date.now() + Math.random().toString(36).slice(2, 5);
+        if (ghOn()) {
+          if (d.file.size > MAX_VIDEO) throw new Error('Видео больше 90 МБ');
+          const path = await ghUpload('videos', d.file, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; });
+          videos.push({ id, url: path, prev: d.url, name: d.name, date });
+        } else videos.push({ id, url: d.url, name: d.name, date, local: true });
+        row.r.className = 'up done'; row.p.textContent = 'Готово ✓'; ok++;
+      } catch (e) { row.r.className = 'up err'; row.p.textContent = e.message; failMsg = e.message; left.push(d); }
+    }
+    videoDraft = left; renderVDraft();
   }
+  // 2) Ссылки
+  for (let i = 0; i < raws.length && !failMsg; i++) {
+    setAdminMsg('Проверяем ссылки: ' + (i + 1) + ' из ' + raws.length);
+    const res = await resolveVideoUrl(raws[i]);
+    if (!res) { bad.push(raws[i]); continue; }
+    videos.push({ id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date }); ok++;
+  }
+  if (failMsg) bad.push(...raws);
   btn.disabled = false;
   if (ok) { sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList(); }
   $('#urlInput').value = bad.join('\n');
+  if (failMsg) { if (ok) await syncGh('Добавлено видео: ' + ok + '.'); return setAdminMsg('Не удалось загрузить: ' + failMsg, 'bad'); }
   if (!ok) return setAdminMsg(CANT_IMPORT, 'bad');
   if (bad.length) toast('Не удалось добавить ссылок: ' + bad.length + '. Они остались в поле.', true, 6000);
+  const hasTemp = videos.some(v => v.local);
   await syncGh('Добавлено видео: ' + ok + '.');
-  if (!ghOn()) setAdminMsg('Добавлено видео: ' + ok + '. Пока видно только в этом браузере.', 'ok');
+  if (!ghOn()) setAdminMsg('Добавлено видео: ' + ok + '.' + (hasTemp ? ' Видео с устройства пропадёт после перезагрузки: подключите GitHub.' : ' Пока видно только в этом браузере.'), 'ok');
 }
 const GH_KEY = 'grandpa.gh.v1'; let gh = { repo: '', branch: 'main', token: '' };
 try { gh = { ...gh, ...JSON.parse(localStorage.getItem(GH_KEY)) }; } catch (e) {}
@@ -608,12 +656,24 @@ function initAdmin() {
   try { if (sessionStorage.getItem(ADMIN_KEY) === '1') revealAdminTab(true); } catch (e) {}
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !gate.hidden) closeModal(); });
   $('#addUrl').addEventListener('click', addByUrl);
+  $('#pickVideos').addEventListener('click', () => $('#videoInput').click());
+  $('#videoInput').addEventListener('change', e => {
+    const files = [...e.target.files]; e.target.value = ''; let bad = 0;
+    for (const f of files) {
+      if (!/^video\//.test(f.type) && !VIDEO_EXT.test(f.name || '')) { bad++; continue; }
+      videoDraft.push({ url: URL.createObjectURL(f), name: f.name, file: f });
+    }
+    renderVDraft();
+    if (bad) setAdminMsg('Часть файлов пропущена: это не видео.', 'bad');
+    else if (files.length) setAdminMsg('Видео выбрано. Выберите дату и нажмите «Опубликовать видео».', 'ok');
+  });
+  $('#clearVDraft').addEventListener('click', () => { videoDraft.forEach(d => URL.revokeObjectURL(d.url)); videoDraft = []; renderVDraft(); });
   window.addEventListener('beforeunload', () => videos.forEach(revokeLocal));
 }
 
 /* ===== Фото, пауза, обучение ===== */
 function revokeLocal(v) {
-  (v.type === 'photo' ? v.images : [v.url]).forEach(u => { if (typeof u === 'string' && u.startsWith('blob:')) URL.revokeObjectURL(u); });
+  (v.type === 'photo' ? v.images : [v.url, v.prev]).forEach(u => { if (typeof u === 'string' && u.startsWith('blob:')) URL.revokeObjectURL(u); });
 }
 function buildPP() { const pp = el('div', 'pp'); pp.setAttribute('aria-hidden', 'true'); pp.appendChild(icon('i-play')); return pp; }
 function showPP(pp, paused) {
