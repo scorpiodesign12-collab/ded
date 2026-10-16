@@ -601,11 +601,11 @@ async function addByFiles(list) {
     if (!(await checkPlayable(url))) { URL.revokeObjectURL(url); fail('Не воспроизводится'); continue; }
     row.p.textContent = '0%'; row.bar.style.width = '0%';
     try {
-      const path = await ghUpload('videos', f, q => { const v = Math.round(q * 100); row.bar.style.width = v + '%'; row.p.textContent = v + '%'; });
+      const path = await ghUpload('videos', f, q => { const v = Math.round(q * 100); row.bar.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; });
       videos.push({ id: 'f' + Date.now() + Math.random().toString(36).slice(2, 5), url: path, prev: url, date }); ok++;
       row.r.className = 'up done'; row.p.textContent = 'Готово ✓';
     } catch (e) { URL.revokeObjectURL(url); fail(e.message); }
-    setAdminMsg('Загружаем: ' + (i + 1) + ' из ' + files.length);
+    setAdminMsg('Загружаем: ' + (i + 1) + ' из ' + files.length); await sleep(1500);
   }
   if (!ok) return setAdminMsg('Ничего не загрузилось.', 'bad');
   sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList();
@@ -620,21 +620,26 @@ async function ghApi(path, method, body) {
   const r = await fetch('https://api.github.com/repos/' + gh.repo + '/contents/' + path + (method === 'GET' ? '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now() : ''),
     { method, headers: { Authorization: 'Bearer ' + gh.token, Accept: 'application/vnd.github+json' }, body: body ? JSON.stringify(body) : undefined });
   if (r.status === 404 && method === 'GET') return null;
-  if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} throw new Error(r.status === 401 ? 'Неверный или просроченный токен' : r.status === 403 ? 'У токена нет права записи или лимит превышен' : r.status === 404 ? 'Репозиторий или ветка не найдены' : (m || 'Ошибка ' + r.status)); }
+  if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} const er = new Error(r.status === 401 ? 'Неверный или просроченный токен' : r.status === 403 ? 'У токена нет права записи или лимит превышен' : r.status === 404 ? 'Репозиторий или ветка не найдены' : (m || 'Ошибка ' + r.status)); er.status = r.status; er.raw = m; er.ra = +r.headers.get('retry-after') || 0; throw er; }
   return r.json();
 }
 const fileToB64 = f => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = () => no(new Error('Не удалось прочитать файл')); fr.readAsDataURL(f); });
-async function ghUpload(dir, file, onProg) {
+const isRate = e => (e.status === 403 || e.status === 429) && /rate limit|secondary|abuse|too many/i.test(e.raw || e.message);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function ghUpload(dir, file, onProg, onWait) {
   const m = /\.([a-z0-9]{2,5})$/i.exec(file.name || ''), path = dir + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + (m ? '.' + m[1].toLowerCase() : '');
   const body = JSON.stringify({ message: 'Добавлен файл ' + path, content: await fileToB64(file), branch: gh.branch });
-  await new Promise((ok, no) => {
+  const send = () => new Promise((ok, no) => {
     const x = new XMLHttpRequest(); x.open('PUT', 'https://api.github.com/repos/' + gh.repo + '/contents/' + path);
     x.setRequestHeader('Authorization', 'Bearer ' + gh.token); x.setRequestHeader('Accept', 'application/vnd.github+json');
     if (x.upload && onProg) x.upload.onprogress = e => { if (e.lengthComputable) onProg(e.loaded / e.total); };
     x.onload = () => { if (x.status >= 200 && x.status < 300) return ok(); let msg = ''; try { msg = JSON.parse(x.responseText).message; } catch (e) {}
-      no(new Error(x.status === 401 ? 'Неверный или просроченный токен' : x.status === 403 ? 'У токена нет права записи или лимит превышен' : x.status === 404 ? 'Репозиторий или ветка не найдены' : (msg || 'Ошибка ' + x.status))); };
+      const er = new Error(x.status === 401 ? 'Неверный или просроченный токен' : x.status === 403 ? 'У токена нет права записи или лимит превышен' : x.status === 404 ? 'Репозиторий или ветка не найдены' : (msg || 'Ошибка ' + x.status)); er.status = x.status; er.raw = msg; er.ra = +x.getResponseHeader('retry-after') || 0; no(er); };
     x.onerror = () => no(new Error('Нет соединения')); x.send(body);
   });
+  for (let a = 0; ; a++) { try { await send(); break; } catch (e) {
+    if (isRate(e) && a < 8) { for (let t = Math.min(Math.max(e.ra || 30, 20), 90); t > 0; t--) { if (onWait) onWait('Ждём GitHub ' + t + ' с'); await sleep(1000); } continue; }
+    if (a >= 5 || !/expected|conflict|409/i.test(e.message)) throw e; await sleep(1500 * (a + 1)); } }
   return path;
 }
 async function ghPublishList() {
@@ -647,7 +652,7 @@ async function ghPublishList() {
 async function syncGh(okMsg) {
   if (!ghOn()) return false;
   setAdminMsg('Публикуем на GitHub…');
-  try { await ghPublishList(); setAdminMsg(okMsg + ' У всех появится через 1–2 минуты.', 'ok'); return true; }
+  try { for (let a = 0; ; a++) { try { await ghPublishList(); break; } catch (e) { if (isRate(e) && a < 8) { setAdminMsg('GitHub просит подождать, повторяем…'); await sleep(Math.min(Math.max(e.ra || 30, 20), 90) * 1000); continue; } if (a >= 4 || (e.status !== 409 && !/expected/i.test(e.message))) throw e; await sleep(1500 * (a + 1)); } } setAdminMsg(okMsg + ' У всех появится через 1–2 минуты.', 'ok'); return true; }
   catch (e) { setAdminMsg('Не удалось опубликовать: ' + e.message, 'bad'); return false; }
 }
 function renderGh() {
@@ -797,8 +802,14 @@ async function addPhotoPost() {
   if (!ok) return setAdminMsg('Одно из фото не открывается. Источник мог запретить показ на чужих сайтах.', 'bad');
   let hasLocal = photoDraft.length > 0, images = all, prevImages;
   if (hasLocal && ghOn()) {
-    btn.disabled = true; setAdminMsg('Загружаем фото на GitHub, подождите…');
-    try { const paths = []; for (const d of photoDraft) { if (d.file.size > 25 * 1024 * 1024) throw new Error('Фото больше 25 МБ'); paths.push(await ghUpload('photos', d.file)); } images = urls.concat(paths); prevImages = all; hasLocal = false; }
+    btn.disabled = true; setAdminMsg('Загружаем фото: 0 из ' + photoDraft.length);
+    const box = $('#upList'); box.replaceChildren();
+    const rows = photoDraft.map(d => { const r = el('div', 'up wait'), t = el('div', 't'), p = el('span', 'p', 'В очереди'); t.append(el('span', 'n', d.file.name || 'фото'), p); const b = el('div', 'bar'); b.append(document.createElement('i')); r.append(t, b); box.append(r); return { r, p, b: b.firstChild }; });
+    let n = 0;
+    try { const paths = []; for (let i = 0; i < photoDraft.length; i++) { const d = photoDraft[i], row = rows[i]; row.r.className = 'up run'; row.p.textContent = '0%';
+        try { if (d.file.size > 25 * 1024 * 1024) throw new Error('Фото больше 25 МБ'); paths.push(await ghUpload('photos', d.file, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; })); row.r.className = 'up done'; row.p.textContent = 'Готово ✓'; setAdminMsg('Загружаем фото: ' + (++n) + ' из ' + photoDraft.length); }
+        catch (e) { row.r.className = 'up err'; row.p.textContent = e.message; throw e; } }
+      images = urls.concat(paths); prevImages = all; hasLocal = false; }
     catch (e) { btn.disabled = false; return setAdminMsg('Не удалось загрузить: ' + e.message, 'bad'); }
     btn.disabled = false;
   }
