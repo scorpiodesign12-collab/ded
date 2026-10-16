@@ -87,6 +87,15 @@ input[type=file]{display:none}
 .item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
 .item div{min-width:0}.item strong{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item small{color:var(--muted);font-size:14px}
+#upList{display:grid;gap:8px}
+.up{padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:14px}
+.up .t{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.up .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.up .p{color:var(--muted);flex:none}
+.up .bar{height:8px;border-radius:99px;background:var(--bg);overflow:hidden}
+.up .bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--blue),#60a5fa);transition:width .2s}
+.up.wait .bar i{width:0}.up.done .bar i{width:100%;background:#4ade80}.up.err .bar i{width:100%;background:var(--red)}
+.up.done .p{color:#7fd19b}.up.err .p{color:#ff7a84}
+.up.run .bar i{background-size:200% 100%;animation:upsh 1.2s linear infinite;background-image:linear-gradient(90deg,var(--blue),#93c5fd,var(--blue))}
+@keyframes upsh{to{background-position:-200% 0}}
 .msg{font-size:15px;min-height:20px}.msg.ok{color:#7fd19b}.msg.bad{color:#ff7a84}
 
 #score,#adminView,.modal{scrollbar-width:none}
@@ -248,8 +257,8 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
       <h3>Добавить видео</h3>
       <label>Ссылка на видеофайл (MP4, WebM)<input type="url" id="urlInput" placeholder="videos/clip1.mp4 или https://…/video.mp4" inputmode="url"></label>
       <button class="btn" type="button" id="addUrl"><svg class="i"><use href="#i-plus"/></svg>Добавить видео</button>
-      <button class="btn ghost" type="button" id="pickFile"><svg class="i"><use href="#i-up"/></svg>Загрузить MP4 с устройства</button>
-      <input type="file" id="fileInput" accept="video/mp4,video/webm,video/quicktime">
+      <button class="btn ghost" type="button" id="pickFile"><svg class="i"><use href="#i-up"/></svg>Загрузить видео с устройства (до 10 штук)</button>
+      <input type="file" id="fileInput" accept="video/mp4,video/webm,video/quicktime" multiple>
     </div>
 
     <div class="panel">
@@ -263,6 +272,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     </div>
 
     <div class="msg" id="adminMsg" role="status"></div>
+    <div id="upList"></div>
     <p class="warn">Пока GitHub не подключён, всё добавленное видно только в этом браузере. Когда подключён, видео, фото и подписи сразу сохраняются в репозиторий и видны всем.</p>
     <button class="btn ghost" type="button" id="resetTut">Показать обучение снова</button>
     <div class="list" id="adminList"></div>
@@ -568,6 +578,39 @@ async function addByFile(file) {
   videos.push({ id: 'f' + Date.now(), url, date, local: true, name: file.name }); sortVideos();
   index = 0; renderFeed(); renderAdminList(); setAdminMsg('Файл добавлен, но пропадёт после перезагрузки страницы и не появится на других устройствах.', 'ok');
 }
+async function addByFiles(list) {
+  const date = $('#dateInput').value;
+  if (!date) return setAdminMsg('Сначала выберите дату публикации.', 'bad');
+  let files = [...list].filter(f => /^video\//.test(f.type));
+  if (!files.length) return setAdminMsg('Выберите видеофайлы (MP4).', 'bad');
+  if (files.length > 10) { files = files.slice(0, 10); toast('Взяты первые 10 файлов.'); }
+  if (!ghOn()) { for (const f of files) await addByFile(f); return; }
+  const box = $('#upList'); box.replaceChildren();
+  const rows = files.map(f => {
+    const r = el('div', 'up wait'); const t = el('div', 't'), n = el('span', 'n', f.name), p = el('span', 'p', 'В очереди'); t.append(n, p);
+    const bar = el('div', 'bar'); bar.append(document.createElement('i')); r.append(t, bar); box.append(r);
+    return { r, p, bar: bar.firstChild };
+  });
+  setAdminMsg('Загружаем: 0 из ' + files.length);
+  let ok = 0;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i], row = rows[i], fail = m => { row.r.className = 'up err'; row.p.textContent = m; };
+    row.r.className = 'up run'; row.p.textContent = 'Проверка…';
+    if (f.size > 50 * 1024 * 1024) { fail('Больше 50 МБ'); continue; }
+    const url = URL.createObjectURL(f);
+    if (!(await checkPlayable(url))) { URL.revokeObjectURL(url); fail('Не воспроизводится'); continue; }
+    row.p.textContent = '0%'; row.bar.style.width = '0%';
+    try {
+      const path = await ghUpload('videos', f, q => { const v = Math.round(q * 100); row.bar.style.width = v + '%'; row.p.textContent = v + '%'; });
+      videos.push({ id: 'f' + Date.now() + Math.random().toString(36).slice(2, 5), url: path, prev: url, date }); ok++;
+      row.r.className = 'up done'; row.p.textContent = 'Готово ✓';
+    } catch (e) { URL.revokeObjectURL(url); fail(e.message); }
+    setAdminMsg('Загружаем: ' + (i + 1) + ' из ' + files.length);
+  }
+  if (!ok) return setAdminMsg('Ничего не загрузилось.', 'bad');
+  sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList();
+  await syncGh('Загружено видео: ' + ok + '.');
+}
 const GH_KEY = 'grandpa.gh.v1'; let gh = { repo: '', branch: 'main', token: '' };
 try { gh = { ...gh, ...JSON.parse(localStorage.getItem(GH_KEY)) }; } catch (e) {}
 if (!gh.repo && /\.github\.io$/.test(location.hostname)) gh.repo = location.hostname.split('.')[0] + '/' + (location.pathname.split('/')[1] || location.hostname);
@@ -581,9 +624,18 @@ async function ghApi(path, method, body) {
   return r.json();
 }
 const fileToB64 = f => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = () => no(new Error('Не удалось прочитать файл')); fr.readAsDataURL(f); });
-async function ghUpload(dir, file) {
+async function ghUpload(dir, file, onProg) {
   const m = /\.([a-z0-9]{2,5})$/i.exec(file.name || ''), path = dir + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + (m ? '.' + m[1].toLowerCase() : '');
-  await ghApi(path, 'PUT', { message: 'Добавлен файл ' + path, content: await fileToB64(file), branch: gh.branch }); return path;
+  const body = JSON.stringify({ message: 'Добавлен файл ' + path, content: await fileToB64(file), branch: gh.branch });
+  await new Promise((ok, no) => {
+    const x = new XMLHttpRequest(); x.open('PUT', 'https://api.github.com/repos/' + gh.repo + '/contents/' + path);
+    x.setRequestHeader('Authorization', 'Bearer ' + gh.token); x.setRequestHeader('Accept', 'application/vnd.github+json');
+    if (x.upload && onProg) x.upload.onprogress = e => { if (e.lengthComputable) onProg(e.loaded / e.total); };
+    x.onload = () => { if (x.status >= 200 && x.status < 300) return ok(); let msg = ''; try { msg = JSON.parse(x.responseText).message; } catch (e) {}
+      no(new Error(x.status === 401 ? 'Неверный или просроченный токен' : x.status === 403 ? 'У токена нет права записи или лимит превышен' : x.status === 404 ? 'Репозиторий или ветка не найдены' : (msg || 'Ошибка ' + x.status))); };
+    x.onerror = () => no(new Error('Нет соединения')); x.send(body);
+  });
+  return path;
 }
 async function ghPublishList() {
   const cur = await ghApi('videos.json', 'GET');
@@ -648,7 +700,7 @@ function initAdmin() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !gate.hidden) closeModal(); });
   $('#addUrl').addEventListener('click', addByUrl);
   $('#pickFile').addEventListener('click', () => $('#fileInput').click());
-  $('#fileInput').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; addByFile(f); });
+  $('#fileInput').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; addByFiles(f); });
   window.addEventListener('beforeunload', () => videos.forEach(revokeLocal));
 }
 
