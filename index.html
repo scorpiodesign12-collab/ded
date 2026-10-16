@@ -38,6 +38,8 @@ header{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(var(--safe-to
 .stage{position:relative;height:100dvh;width:min(100vw,calc(100dvh * 9 / 16));overflow:hidden;touch-action:none;background:#000}
 .track{height:100%;transition:transform .45s cubic-bezier(.4,0,.2,1)}
 .slide{position:relative;height:100%;width:100%;background:#000}
+.slide,.slide video{touch-action:none}
+html,body{overscroll-behavior:none}
 .slide video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
 .date{position:absolute;left:12px;bottom:calc(var(--safe-bottom) + 30px);padding:6px 10px;border-radius:8px;background:rgba(8,11,18,.6);font-size:15px;font-weight:600}
 .date{max-width:calc(100% - 84px)}
@@ -405,19 +407,22 @@ function syncSound() {
   b.querySelector('use').setAttribute('href', muted ? '#i-mute' : '#i-vol');
 }
 function initFeedControls() {
-  let start = null;
-  stage.addEventListener('pointerdown', e => {
-    if (tutOpen) hideTutorial();
-    start = e.target.closest('button') ? null : { x: e.clientX, y: e.clientY };
-  });
-  stage.addEventListener('pointerup', e => {
+  let start = null, last = null;
+  const finish = e => {
     if (!start) return;
-    const dx = e.clientX - start.x, dy = e.clientY - start.y, ax = Math.abs(dx), ay = Math.abs(dy); start = null;
-    if (ax < 10 && ay < 10) { tapStage(e); return; }                  // центр = пауза, слева −10 с, справа +10 с
+    const x = e && e.clientX != null && e.type !== 'pointercancel' ? e.clientX : last.x, y = e && e.clientY != null && e.type !== 'pointercancel' ? e.clientY : last.y;
+    const dx = x - start.x, dy = y - start.y, ax = Math.abs(dx), ay = Math.abs(dy), tapEv = { clientX: x, clientY: y }; start = null;
+    if (ax < 10 && ay < 10) { if (e && e.type === 'pointerup') tapStage(tapEv); return; }  // центр = пауза, слева −10 с, справа +10 с
     if (ay >= ax) { if (ay >= SWIPE_MIN_PX) goTo(index + (dy < 0 ? 1 : -1)); } // вверх/вниз = другой ролик
     else if (ax >= SWIPE_MIN_PX) stepPhoto(dx < 0 ? 1 : -1);          // вправо/влево = фото
+  };
+  stage.addEventListener('pointerdown', e => {
+    if (tutOpen) hideTutorial();
+    start = e.target.closest('button') ? null : { x: e.clientX, y: e.clientY }; last = { x: e.clientX, y: e.clientY };
   });
-  stage.addEventListener('pointercancel', () => { start = null; });
+  stage.addEventListener('pointermove', e => { if (start) last = { x: e.clientX, y: e.clientY }; });
+  stage.addEventListener('pointerup', finish);
+  stage.addEventListener('pointercancel', finish);   // если браузер перехватил касание — жест всё равно засчитывается
   stage.addEventListener('wheel', e => {
     e.preventDefault();
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { if (Math.abs(e.deltaX) > 20) stepPhoto(e.deltaX > 0 ? 1 : -1); }
