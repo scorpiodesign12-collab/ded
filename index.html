@@ -38,7 +38,7 @@ header{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(var(--safe-to
 .stage{position:relative;height:100dvh;width:min(100vw,calc(100dvh * 9 / 16));overflow:hidden;touch-action:none;background:#000}
 .track{height:100%;transition:transform .45s cubic-bezier(.4,0,.2,1)}
 .slide{position:relative;height:100%;width:100%;background:#000}
-.slide video{width:100%;height:100%;object-fit:cover;display:block}
+.slide video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
 .date{position:absolute;left:12px;bottom:calc(var(--safe-bottom) + 30px);padding:6px 10px;border-radius:8px;background:rgba(8,11,18,.6);font-size:15px;font-weight:600}
 .vstate{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(8,11,18,.45);text-align:center;padding:24px}
 .slide.loading .vstate.load{display:flex;background:transparent}
@@ -367,8 +367,7 @@ function applyPosition(instant) {
   track.style.transition = instant || reduceMotion() ? 'none' : '';
   track.style.transform = `translateY(${-index * 100}%)`;
   $('#sound').hidden = videos[index].type === 'photo';
-  const atEnd = videos.length > 1 && index === videos.length - 1;
-  $('#endCap').classList.toggle('on', atEnd); stage.classList.toggle('end', atEnd);
+  if (videos.length > 1 && index === videos.length - 1) showEnd(); else hideEnd();
   [...track.children].forEach((sl, i) => {
     const vid = $('video', sl);
     if (Math.abs(i - index) <= 1) ensureSrc(i);
@@ -377,7 +376,11 @@ function applyPosition(instant) {
   playActive();
   maybeTutorial();
 }
+let endTimer = 0;
+function showEnd() { clearTimeout(endTimer); $('#endCap').classList.add('on'); stage.classList.add('end'); endTimer = setTimeout(hideEnd, 3000); }
+function hideEnd() { clearTimeout(endTimer); $('#endCap').classList.remove('on'); stage.classList.remove('end'); }
 function goTo(i) {
+  if (currentTab === 'feed' && videos.length > 1 && index === videos.length - 1 && i === videos.length) { showEnd(); return; } // листаем дальше конца: подсказка снова
   if (locked || currentTab !== 'feed' || i < 0 || i >= videos.length || i === index) return;
   locked = true; index = i; applyPosition(false);
   setTimeout(() => { locked = false; }, reduceMotion() ? 50 : LOCK_MS);
@@ -563,6 +566,15 @@ const GH_KEY = 'grandpa.gh.v1'; let gh = { repo: '', branch: 'main', token: '' }
 try { gh = { ...gh, ...JSON.parse(localStorage.getItem(GH_KEY)) }; } catch (e) {}
 if (!gh.repo && /\.github\.io$/.test(location.hostname)) gh.repo = location.hostname.split('.')[0] + '/' + (location.pathname.split('/')[1] || location.hostname);
 const ghOn = () => !!(gh.repo && gh.token);
+// Токен хранится в двух местах (localStorage + IndexedDB) и браузеру запрещено его чистить автоматически.
+function idbOpen() { return new Promise((ok, no) => { try { const r = indexedDB.open('grandpa', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); } catch (e) { no(e); } }); }
+async function idbSet(k, v) { try { const d = await idbOpen(); await new Promise(ok => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = t.onerror = ok; }); } catch (e) {} }
+async function idbGet(k) { try { const d = await idbOpen(); return await new Promise(ok => { const r = d.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => ok(r.result); r.onerror = () => ok(null); }); } catch (e) { return null; } }
+function persistGh() { try { localStorage.setItem(GH_KEY, JSON.stringify(gh)); } catch (e) {} idbSet(GH_KEY, JSON.stringify(gh)); try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} }
+async function restoreGh() {
+  if (gh.token) { persistGh(); return; }
+  try { const raw = await idbGet(GH_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.token) { gh = { ...gh, ...o }; persistGh(); } } } catch (e) {}
+}
 // Публикация идёт через GitHub API прямо из браузера. Токен хранится только в браузере админа, в коде его нет.
 async function ghApi(path, method, body) {
   const r = await fetch('https://api.github.com/repos/' + gh.repo + '/contents/' + path + (method === 'GET' ? '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now() : ''),
@@ -615,7 +627,7 @@ async function saveGh() {
     const r = await fetch('https://api.github.com/repos/' + repo, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' } });
     if (!r.ok) throw new Error(r.status === 401 ? 'Неверный токен' : 'Репозиторий не найден или нет доступа');
     const d = await r.json(); if (d.permissions && !d.permissions.push) throw new Error('У токена нет права записи (Contents: Read and write)');
-    gh = { repo, token, branch: d.default_branch || 'main' }; try { localStorage.setItem(GH_KEY, JSON.stringify(gh)); } catch (e) {}
+    gh = { repo, token, branch: d.default_branch || 'main' }; persistGh();
     renderGh(); setAdminMsg('GitHub подключён.', 'ok');
   } catch (e) { setAdminMsg(e.message || 'Ошибка', 'bad'); }
 }
@@ -647,7 +659,7 @@ function initAdmin() {
   $('#clearDraft').addEventListener('click', () => { photoDraft.forEach(d => URL.revokeObjectURL(d.url)); photoDraft = []; renderDraft(); });
   $('#addPhotos').addEventListener('click', addPhotoPost);
   $('#ghSave').addEventListener('click', saveGh);
-  $('#ghOff').addEventListener('click', () => { gh.token = ''; try { localStorage.setItem(GH_KEY, JSON.stringify(gh)); } catch (e) {} renderGh(); setAdminMsg('GitHub отключён.', 'ok'); });
+  $('#ghOff').addEventListener('click', () => { gh.token = ''; persistGh(); renderGh(); setAdminMsg('GitHub отключён.', 'ok'); });
   renderGh();
   $('#resetTut').addEventListener('click', () => {
     tutSeen = {}; try { localStorage.removeItem(TUT_KEY); } catch (e) {}
@@ -810,6 +822,7 @@ function countNewVideos() {
   return fresh;
 }
 async function init() {
+  await restoreGh();
   videos = loadVideos(await loadPublished()); sortVideos();
   initTabs(); initFeedControls(); initAdmin(); syncSound(); renderFeed();
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen()) playActive(); });
