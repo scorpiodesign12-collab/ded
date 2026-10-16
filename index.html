@@ -232,6 +232,12 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 <!-- Панель администратора: отдельная вкладка, появляется после ввода ID -->
 <section id="adminView" hidden aria-label="Панель администратора">
   <div class="wrap">
+    <div class="panel"><h3>Публикация для всех</h3>
+      <p class="warn" id="ghState"></p>
+      <label>Репозиторий (логин/название)<input type="text" id="ghRepo" placeholder="ivan/video" autocapitalize="off" autocomplete="off"></label>
+      <label>Токен доступа GitHub<input type="password" id="ghToken" placeholder="github_pat_…" autocomplete="off"></label>
+      <button class="btn" type="button" id="ghSave">Подключить</button>
+      <button class="btn ghost" type="button" id="ghOff">Отключить</button></div>
     <div class="panel">
       <div class="row"><h3>Публикаций: <span id="count">0</span></h3>
         <button type="button" class="btn ghost" id="logout"><svg class="i"><use href="#i-close"/></svg>Выйти</button></div>
@@ -257,11 +263,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     </div>
 
     <div class="msg" id="adminMsg" role="status"></div>
-    <p class="warn">Файлы с устройства живут только до перезагрузки страницы. Всё, что добавлено здесь, видно только в этом браузере, пока вы не перенесёте список в videos.json (кнопка ниже).</p>
-    <div class="panel"><h3>Для GitHub Pages</h3>
-      <p class="warn">Загрузите видео и фото в репозиторий, добавьте их здесь по пути вроде videos/clip1.mp4, нажмите кнопку и вставьте текст в файл videos.json. После этого их увидят все по ссылке.</p>
-      <button class="btn" type="button" id="exportJson">Скопировать videos.json</button>
-      <textarea id="exportBox" rows="6" readonly hidden></textarea></div>
+    <p class="warn">Пока GitHub не подключён, всё добавленное видно только в этом браузере. Когда подключён, видео, фото и подписи сразу сохраняются в репозиторий и видны всем.</p>
     <button class="btn ghost" type="button" id="resetTut">Показать обучение снова</button>
     <div class="list" id="adminList"></div>
   </div>
@@ -320,7 +322,7 @@ function loadVideos(pub) {
   return base.concat(local.filter(v => !ids.has(v.id) && !(pub && /^d\d$/.test(v.id)))).filter(v => !hidden.includes(v.id));
 }
 function saveVideos() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(videos.filter(v => !v.local && !v.pub))); } catch (e) { toast('Не удалось сохранить список в этом браузере.', true); }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(videos.filter(v => !v.local && !v.pub).map(({ prev, prevImages, ...r }) => r))); } catch (e) { toast('Не удалось сохранить список в этом браузере.', true); }
 }
 function sortVideos() { videos.sort((a, b) => (b.date || '').localeCompare(a.date || '')); }
 
@@ -369,7 +371,7 @@ function renderFeed() {
 function ensureSrc(i) {
   const slide = track.children[i]; if (!slide || !videos[i]) return;
   const vid = $('video', slide); if (!vid) return;
-  if (vid.getAttribute('src') !== videos[i].url) vid.src = videos[i].url;
+  const src = videos[i].prev || videos[i].url; if (vid.getAttribute('src') !== src) vid.src = src;
 }
 function playActive() {
   if (currentTab !== 'feed' || userPaused) return;
@@ -441,7 +443,7 @@ function setTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
   $('#score').hidden = name !== 'score';
   $('#adminView').hidden = name !== 'admin';
-  if (name === 'admin') { if (!$('#dateInput').value) $('#dateInput').value = todayIso(); renderAdminList(); }
+  if (name === 'admin') { if (!$('#dateInput').value) $('#dateInput').value = todayIso(); renderAdminList(); renderGh(); }
   if (name !== 'feed') { pauseAll(); if (tutOpen) hideTutorial(); } else { playActive(); maybeTutorial(); }
 }
 function initTabs() { document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab))); }
@@ -512,7 +514,7 @@ function renderAdminList() {
   videos.forEach(v => {
     const row = el('div', 'item'); const info = el('div');
     const dt = document.createElement('input'); dt.type = 'date'; dt.value = v.date || ''; dt.setAttribute('aria-label', 'Дата публикации');
-    dt.addEventListener('change', () => { if (!dt.value) return; v.date = dt.value; sortVideos(); saveVideos(); renderFeed(); renderAdminList(); setAdminMsg('Дата обновлена.', 'ok'); });
+    dt.addEventListener('change', () => { if (!dt.value) return; v.date = dt.value; sortVideos(); saveVideos(); renderFeed(); renderAdminList(); setAdminMsg('Дата обновлена.', 'ok'); syncGh('Дата обновлена.'); });
     const title = v.type === 'photo' ? `Фото (${v.images.length})` + (v.text ? ': ' + v.text : '') : (v.local ? v.name || 'Файл с устройства' : v.url);
     info.append(el('strong', '', title), el('small', '', v.local ? 'Только в этой сессии' : 'Дата: ' + formatDate(v.date)), dt);
     const del = el('button', 'iconbtn'); del.type = 'button'; del.setAttribute('aria-label', 'Удалить ролик ' + formatDate(v.date)); del.appendChild(icon('i-trash'));
@@ -526,7 +528,7 @@ function removeVideo(id) {
   if (v.pub) { hidden.push(id); try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden)); } catch (e) {} }
   videos = videos.filter(x => x.id !== id); saveVideos();
   if (index >= videos.length) index = Math.max(videos.length - 1, 0);
-  renderFeed(); renderAdminList(); setAdminMsg('Ролик удалён.', 'ok');
+  renderFeed(); renderAdminList(); setAdminMsg('Ролик удалён.', 'ok'); syncGh('Ролик удалён.');
 }
 function checkPlayable(url) {
   return new Promise(resolve => {
@@ -548,7 +550,7 @@ async function addByUrl() {
   const ok = await checkPlayable(u.href); btn.disabled = false;
   if (!ok) return setAdminMsg('Видео не открывается. Источник мог запретить доступ или файл недоступен.', 'bad');
   videos.push({ id: 'u' + Date.now(), url: /^https?:/i.test(raw) ? u.href : raw, date }); sortVideos(); saveVideos();
-  index = 0; renderFeed(); renderAdminList(); $('#urlInput').value = ''; setAdminMsg('Видео добавлено в список этого браузера.', 'ok');
+  index = 0; renderFeed(); renderAdminList(); $('#urlInput').value = ''; setAdminMsg('Видео добавлено в список этого браузера.', 'ok'); await syncGh('Видео опубликовано.');
 }
 async function addByFile(file) {
   const date = $('#dateInput').value;
@@ -556,9 +558,61 @@ async function addByFile(file) {
   if (!file || !/^video\//.test(file.type)) return setAdminMsg('Выберите видеофайл (MP4).', 'bad');
   const url = URL.createObjectURL(file); setAdminMsg('Проверяем файл…');
   if (!(await checkPlayable(url))) { URL.revokeObjectURL(url); return setAdminMsg('Этот файл не воспроизводится в браузере.', 'bad'); }
-  // Файл остаётся только в памяти страницы. TODO(backend): загрузка в объектное хранилище и запись в БД.
+  if (ghOn()) {
+    if (file.size > 50 * 1024 * 1024) { URL.revokeObjectURL(url); return setAdminMsg('Файл больше 50 МБ. Сожмите видео и попробуйте снова.', 'bad'); }
+    setAdminMsg('Загружаем видео на GitHub, подождите…'); let path;
+    try { path = await ghUpload('videos', file); } catch (e) { return setAdminMsg('Не удалось загрузить: ' + e.message, 'bad'); }
+    videos.push({ id: 'f' + Date.now(), url: path, prev: url, date }); sortVideos(); saveVideos();
+    index = 0; renderFeed(); renderAdminList(); await syncGh('Видео опубликовано.'); return;
+  }
   videos.push({ id: 'f' + Date.now(), url, date, local: true, name: file.name }); sortVideos();
   index = 0; renderFeed(); renderAdminList(); setAdminMsg('Файл добавлен, но пропадёт после перезагрузки страницы и не появится на других устройствах.', 'ok');
+}
+const GH_KEY = 'grandpa.gh.v1'; let gh = { repo: '', branch: 'main', token: '' };
+try { gh = { ...gh, ...JSON.parse(localStorage.getItem(GH_KEY)) }; } catch (e) {}
+if (!gh.repo && /\.github\.io$/.test(location.hostname)) gh.repo = location.hostname.split('.')[0] + '/' + (location.pathname.split('/')[1] || location.hostname);
+const ghOn = () => !!(gh.repo && gh.token);
+// Публикация идёт через GitHub API прямо из браузера. Токен хранится только в браузере админа, в коде его нет.
+async function ghApi(path, method, body) {
+  const r = await fetch('https://api.github.com/repos/' + gh.repo + '/contents/' + path + (method === 'GET' ? '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now() : ''),
+    { method, headers: { Authorization: 'Bearer ' + gh.token, Accept: 'application/vnd.github+json' }, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 404 && method === 'GET') return null;
+  if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} throw new Error(r.status === 401 ? 'Неверный или просроченный токен' : r.status === 403 ? 'У токена нет права записи или лимит превышен' : r.status === 404 ? 'Репозиторий или ветка не найдены' : (m || 'Ошибка ' + r.status)); }
+  return r.json();
+}
+const fileToB64 = f => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = () => no(new Error('Не удалось прочитать файл')); fr.readAsDataURL(f); });
+async function ghUpload(dir, file) {
+  const m = /\.([a-z0-9]{2,5})$/i.exec(file.name || ''), path = dir + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + (m ? '.' + m[1].toLowerCase() : '');
+  await ghApi(path, 'PUT', { message: 'Добавлен файл ' + path, content: await fileToB64(file), branch: gh.branch }); return path;
+}
+async function ghPublishList() {
+  const cur = await ghApi('videos.json', 'GET');
+  const list = videos.filter(v => !v.local).map(({ pub, local, prev, prevImages, ...r }) => r);
+  await ghApi('videos.json', 'PUT', { message: 'Обновлён список', content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, 2)))), branch: gh.branch, ...(cur ? { sha: cur.sha } : {}) });
+  videos.forEach(v => { if (!v.local) v.pub = true; }); hidden = [];
+  try { localStorage.removeItem(HIDDEN_KEY); localStorage.removeItem(STORE_KEY); } catch (e) {}
+}
+async function syncGh(okMsg) {
+  if (!ghOn()) return false;
+  setAdminMsg('Публикуем на GitHub…');
+  try { await ghPublishList(); setAdminMsg(okMsg + ' У всех появится через 1–2 минуты.', 'ok'); return true; }
+  catch (e) { setAdminMsg('Не удалось опубликовать: ' + e.message, 'bad'); return false; }
+}
+function renderGh() {
+  $('#ghRepo').value = gh.repo; $('#ghToken').value = gh.token ? '••••••••' : '';
+  $('#ghState').textContent = ghOn() ? 'Подключено: ' + gh.repo + '. Всё, что вы добавите, сразу публикуется для всех.' : 'Не подключено. Добавленное видно только в этом браузере.';
+}
+async function saveGh() {
+  const repo = $('#ghRepo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, ''), tv = $('#ghToken').value.trim(), token = tv.startsWith('•') ? gh.token : tv;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) return setAdminMsg('Введите репозиторий (логин/название) и токен.', 'bad');
+  setAdminMsg('Проверяем доступ…');
+  try {
+    const r = await fetch('https://api.github.com/repos/' + repo, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' } });
+    if (!r.ok) throw new Error(r.status === 401 ? 'Неверный токен' : 'Репозиторий не найден или нет доступа');
+    const d = await r.json(); if (d.permissions && !d.permissions.push) throw new Error('У токена нет права записи (Contents: Read and write)');
+    gh = { repo, token, branch: d.default_branch || 'main' }; try { localStorage.setItem(GH_KEY, JSON.stringify(gh)); } catch (e) {}
+    renderGh(); setAdminMsg('GitHub подключён.', 'ok');
+  } catch (e) { setAdminMsg(e.message || 'Ошибка', 'bad'); }
 }
 function exportJson() {
   const txt = JSON.stringify(videos.filter(v => !v.local).map(({ pub, local, ...r }) => r), null, 2), box = $('#exportBox');
@@ -576,14 +630,16 @@ function initAdmin() {
   $('#pickPhotos').addEventListener('click', () => $('#photoInput').click());
   $('#photoInput').addEventListener('change', e => {
     const files = [...e.target.files]; e.target.value = ''; let bad = 0;
-    files.forEach(f => { if (!/^image\//.test(f.type)) { bad++; return; } photoDraft.push({ url: URL.createObjectURL(f), name: f.name }); });
+    files.forEach(f => { if (!/^image\//.test(f.type)) { bad++; return; } photoDraft.push({ url: URL.createObjectURL(f), name: f.name, file: f }); });
     renderDraft();
     if (bad) setAdminMsg('Часть файлов пропущена: это не изображения.', 'bad');
     else setAdminMsg('Фото выбраны. Напишите подпись и нажмите «Опубликовать фото».', 'ok');
   });
   $('#clearDraft').addEventListener('click', () => { photoDraft.forEach(d => URL.revokeObjectURL(d.url)); photoDraft = []; renderDraft(); });
   $('#addPhotos').addEventListener('click', addPhotoPost);
-  $('#exportJson').addEventListener('click', exportJson);
+  $('#ghSave').addEventListener('click', saveGh);
+  $('#ghOff').addEventListener('click', () => { gh.token = ''; try { localStorage.setItem(GH_KEY, JSON.stringify(gh)); } catch (e) {} renderGh(); setAdminMsg('GitHub отключён.', 'ok'); });
+  renderGh();
   $('#resetTut').addEventListener('click', () => {
     tutSeen = {}; try { localStorage.removeItem(TUT_KEY); } catch (e) {}
     setTab('feed'); setTimeout(maybeTutorial, 400);
@@ -617,7 +673,7 @@ function togglePause() {
 function buildPhotoSlide(v) {
   const slide = el('div', 'slide photo'); slide.dataset.id = v.id; slide._pi = 0;
   const strip = el('div', 'strip');
-  v.images.forEach((src, i) => {
+  (v.prevImages || v.images).forEach((src, i) => {
     const frame = el('div', 'pframe'), img = document.createElement('img');
     img.src = src; img.alt = `Фото ${i + 1} из ${v.images.length}`; img.draggable = false;
     img.addEventListener('error', () => frame.classList.add('bad'));
@@ -687,12 +743,18 @@ async function addPhotoPost() {
   const btn = $('#addPhotos'); btn.disabled = true; setAdminMsg('Проверяем фото…');
   const ok = (await Promise.all(urls.map(checkImage))).every(Boolean); btn.disabled = false;
   if (!ok) return setAdminMsg('Одно из фото не открывается. Источник мог запретить показ на чужих сайтах.', 'bad');
-  const hasLocal = photoDraft.length > 0;
+  let hasLocal = photoDraft.length > 0, images = all, prevImages;
+  if (hasLocal && ghOn()) {
+    btn.disabled = true; setAdminMsg('Загружаем фото на GitHub, подождите…');
+    try { const paths = []; for (const d of photoDraft) { if (d.file.size > 25 * 1024 * 1024) throw new Error('Фото больше 25 МБ'); paths.push(await ghUpload('photos', d.file)); } images = urls.concat(paths); prevImages = all; hasLocal = false; }
+    catch (e) { btn.disabled = false; return setAdminMsg('Не удалось загрузить: ' + e.message, 'bad'); }
+    btn.disabled = false;
+  }
   // TODO(backend): загрузка фото в объектное хранилище и запись публикации в БД.
-  videos.push({ id: 'p' + Date.now(), type: 'photo', images: all, text: $('#photoText').value.trim().slice(0, 500), date, local: hasLocal });
+  videos.push({ id: 'p' + Date.now(), type: 'photo', images, prevImages, text: $('#photoText').value.trim().slice(0, 500), date, local: hasLocal });
   photoDraft = []; renderDraft(); sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList();
   $('#photoUrls').value = ''; $('#photoText').value = '';
-  setAdminMsg(hasLocal ? 'Фото добавлены, но пропадут после перезагрузки страницы.' : 'Фото добавлены.', 'ok');
+  setAdminMsg(hasLocal ? 'Фото добавлены, но пропадут после перезагрузки страницы.' : 'Фото добавлены.', 'ok'); await syncGh('Фото опубликованы.');
 }
 
 /* ===== Запуск ===== */
