@@ -103,6 +103,10 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 .pp{position:absolute;left:50%;top:50%;width:88px;height:88px;margin:-44px 0 0 -44px;border-radius:50%;background:rgba(8,11,18,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.8);transition:opacity .2s,transform .2s;pointer-events:none}
 .pp svg{width:38px;height:38px}
 .pp.show{opacity:1;transform:scale(1)}
+.skip{position:absolute;top:50%;margin-top:-34px;min-width:68px;height:68px;padding:0 14px;border-radius:34px;background:rgba(8,11,18,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;opacity:0;pointer-events:none}
+.skip.l{left:8%}.skip.r{right:8%}
+.skip.on{animation:skipf .6s ease-out forwards}
+@keyframes skipf{0%{opacity:0;transform:scale(.8)}20%{opacity:1;transform:scale(1)}70%{opacity:1}100%{opacity:0}}
 .pp.flash{animation:flash .7s ease-out forwards}
 @keyframes flash{0%{opacity:0;transform:scale(.7)}25%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.15)}}
 .slide video{transition:filter .25s}
@@ -330,7 +334,7 @@ function buildSlide(v) {
     if (slide._tries < 2) { slide._tries++; setTimeout(() => { vid.load(); if (slide === track.children[index]) playActive(); }, 1500); return; } // две автоповторные попытки
     slide.classList.remove('loading'); slide.classList.add('error');
   });
-  const date = el('div', 'date'); date.append(document.createTextNode(formatDate(v.date)), el('small', '', 'Данное видео устарело, дождитесь нового'));
+  const date = el('div', 'date'); date.append(document.createTextNode(formatDate(v.date)));
   const load = el('div', 'vstate load'); load.appendChild(icon('i-clock'));
   const sp = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); sp.setAttribute('class', 'spin'); sp.setAttribute('viewBox', '0 0 44 44');
   sp.innerHTML = '<circle class="a" cx="22" cy="22" r="18"/><circle class="b" cx="22" cy="22" r="18"/>';
@@ -345,7 +349,8 @@ function buildSlide(v) {
   hit.addEventListener('pointerdown', e => { e.stopPropagation(); hit.setPointerCapture(e.pointerId); slide.classList.add('scrub'); seek(e); });
   hit.addEventListener('pointermove', e => { if (slide.classList.contains('scrub')) seek(e); });
   ['pointerup', 'pointercancel'].forEach(n => hit.addEventListener(n, e => { e.stopPropagation(); slide.classList.remove('scrub'); }));
-  slide.append(vid, date, load, err, prog, hit, buildPP());
+  const skL = el('div', 'skip l', '−10 с'), skR = el('div', 'skip r', '+10 с');
+  slide.append(vid, date, load, err, prog, hit, buildPP(), skL, skR);
   return slide;
 }
 function renderFeed() {
@@ -387,7 +392,7 @@ function applyPosition(instant) {
 let endTimer = 0;
 function showEnd() { clearTimeout(endTimer); $('#endCap').classList.add('on'); stage.classList.add('end'); endTimer = setTimeout(hideEnd, 3000); }
 function hideEnd() { clearTimeout(endTimer); $('#endCap').classList.remove('on'); stage.classList.remove('end'); }
-function glowDate() { const d = $('.date', track.children[index] || document.body); if (!d) return; d.classList.remove('glow'); void d.offsetWidth; d.classList.add('glow'); }
+function glowDate() {}
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function goTo(i) {
   if (currentTab === 'feed' && videos.length > 1 && index === videos.length - 1 && i === videos.length) { showEnd(); return; } // листаем дальше конца: подсказка снова
@@ -408,7 +413,7 @@ function initFeedControls() {
   stage.addEventListener('pointerup', e => {
     if (!start) return;
     const dx = e.clientX - start.x, dy = e.clientY - start.y, ax = Math.abs(dx), ay = Math.abs(dy); start = null;
-    if (ax < 10 && ay < 10) { togglePause(); return; }               // касание = пауза
+    if (ax < 10 && ay < 10) { tapStage(e); return; }                  // центр = пауза, слева −10 с, справа +10 с
     if (ay >= ax) { if (ay >= SWIPE_MIN_PX) goTo(index + (dy < 0 ? 1 : -1)); } // вверх/вниз = другой ролик
     else if (ax >= SWIPE_MIN_PX) stepPhoto(dx < 0 ? 1 : -1);          // вправо/влево = фото
   });
@@ -708,6 +713,19 @@ function showPP(pp, paused) {
   pp.classList.remove('show', 'flash'); void pp.offsetWidth; pp.classList.add(paused ? 'show' : 'flash');
 }
 function resetPause() { userPaused = false; track.querySelectorAll('.paused').forEach(x => x.classList.remove('paused')); track.querySelectorAll('.pp').forEach(p => p.classList.remove('show', 'flash')); }
+function tapStage(e) {
+  const slide = track.children[index], vid = slide && $('video', slide);
+  if (!vid || !vid.getAttribute('src') || currentTab !== 'feed') { togglePause(); return; }
+  const r = stage.getBoundingClientRect(), k = (e.clientX - r.left) / r.width;
+  if (k > 0.65 || k < 0.35) {
+    const fwd = k > 0.65, d = vid.duration || 0;
+    let t = vid.currentTime + (fwd ? 10 : -10);
+    t = Math.max(0, d ? Math.min(t, Math.max(d - 0.1, 0)) : t);
+    try { vid.currentTime = t; } catch (err) {}
+    const ind = $(fwd ? '.skip.r' : '.skip.l', slide);
+    if (ind) { ind.classList.remove('on'); void ind.offsetWidth; ind.classList.add('on'); }
+  } else togglePause();
+}
 function togglePause() {
   if (currentTab !== 'feed') return;
   const slide = track.children[index], vid = slide && $('video', slide);
