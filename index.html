@@ -40,6 +40,10 @@ header{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(var(--safe-to
 .slide{position:relative;height:100%;width:100%;background:#000}
 .slide video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
 .date{position:absolute;left:12px;bottom:calc(var(--safe-bottom) + 30px);padding:6px 10px;border-radius:8px;background:rgba(8,11,18,.6);font-size:15px;font-weight:600}
+.date{max-width:calc(100% - 84px)}
+.date small{display:block;margin-top:3px;font-size:13px;font-weight:500;line-height:1.3;color:#ffd0d4}
+.date.glow{animation:dglow 1.5s ease-in-out 4}
+@keyframes dglow{0%,100%{box-shadow:0 0 0 rgba(239,51,64,0);background:rgba(8,11,18,.6)}50%{box-shadow:0 0 18px 4px rgba(239,51,64,.75);background:rgba(60,12,18,.85)}}
 .vstate{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(8,11,18,.45);text-align:center;padding:24px}
 .slide.loading .vstate.load{display:flex;background:transparent}
 .slide.error .vstate.err{display:flex;background:rgba(8,11,18,.85)}
@@ -323,7 +327,7 @@ function buildSlide(v) {
     if (slide._tries < 2) { slide._tries++; setTimeout(() => { vid.load(); if (slide === track.children[index]) playActive(); }, 1500); return; } // две автоповторные попытки
     slide.classList.remove('loading'); slide.classList.add('error');
   });
-  const date = el('div', 'date', formatDate(v.date));
+  const date = el('div', 'date'); date.append(document.createTextNode(formatDate(v.date)), el('small', '', 'Данное видео устарело, дождитесь нового'));
   const load = el('div', 'vstate load'); load.appendChild(icon('i-clock'));
   const sp = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); sp.setAttribute('class', 'spin'); sp.setAttribute('viewBox', '0 0 44 44');
   sp.innerHTML = '<circle class="a" cx="22" cy="22" r="18"/><circle class="b" cx="22" cy="22" r="18"/>';
@@ -374,11 +378,14 @@ function applyPosition(instant) {
     if (vid && i !== index) { vid.pause(); try { vid.currentTime = 0; } catch (e) {} }
   });
   playActive();
+  glowDate();
   maybeTutorial();
 }
 let endTimer = 0;
 function showEnd() { clearTimeout(endTimer); $('#endCap').classList.add('on'); stage.classList.add('end'); endTimer = setTimeout(hideEnd, 3000); }
 function hideEnd() { clearTimeout(endTimer); $('#endCap').classList.remove('on'); stage.classList.remove('end'); }
+function glowDate() { const d = $('.date', track.children[index] || document.body); if (!d) return; d.classList.remove('glow'); void d.offsetWidth; d.classList.add('glow'); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function goTo(i) {
   if (currentTab === 'feed' && videos.length > 1 && index === videos.length - 1 && i === videos.length) { showEnd(); return; } // листаем дальше конца: подсказка снова
   if (locked || currentTab !== 'feed' || i < 0 || i >= videos.length || i === index) return;
@@ -823,11 +830,11 @@ function countNewVideos() {
 }
 async function init() {
   await restoreGh();
-  videos = loadVideos(await loadPublished()); sortVideos();
+  videos = shuffle(loadVideos(await loadPublished()));
   initTabs(); initFeedControls(); initAdmin(); syncSound(); renderFeed();
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen()) playActive(); });
   setTimeout(() => {
-    $('#loader').classList.add('done'); appReady = true; playActive(); setTimeout(maybeTutorial, 900);
+    $('#loader').classList.add('done'); appReady = true; playActive(); glowDate(); setTimeout(maybeTutorial, 900);
     const n = countNewVideos();
     toast(n > 0 ? `Добавлено новых: ${n}` : 'Все видео обновлены', false, 3500);
     setTimeout(() => $('#loader').remove(), 600);
