@@ -119,6 +119,10 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 .progHit{position:absolute;left:0;right:0;bottom:var(--safe-bottom);height:28px;z-index:2;touch-action:none}
 /* Фото */
 .slide.photo{background:#05070c;overflow:hidden}
+.slide.yt{background:#000;overflow:hidden}
+.ytprev{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;-webkit-user-drag:none}
+.ytframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;pointer-events:none;opacity:0;transition:opacity .5s}
+.ytframe.on{opacity:1}
 .strip{display:flex;height:100%;transition:transform .7s cubic-bezier(.45,0,.2,1)}
 .pframe{position:relative;flex:0 0 100%;height:100%}
 .pframe img{width:100%;height:100%;object-fit:contain;display:block;-webkit-user-drag:none}
@@ -248,7 +252,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
       <button class="btn ghost" type="button" id="pickVideos"><svg class="i"><use href="#i-up"/></svg>Выбрать MP4 с устройства</button>
       <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,video/*,.mp4,.m4v,.mov,.webm" multiple>
       <div class="row" id="vDraftRow" hidden><span id="vDraftInfo"></span><button class="btn ghost" type="button" id="clearVDraft">Очистить</button></div>
-      <label>Или ссылки на видео (прямая ссылка на MP4/WebM либо на HTML-страницу с видео), по одной в строке<textarea id="urlInput" rows="3" placeholder="videos/clip1.mp4, https://…/video.mp4 или https://…/page.html" inputmode="url" autocapitalize="off"></textarea></label>
+      <label>Или ссылки на видео (прямая ссылка на MP4/WebM либо на HTML-страницу с видео), по одной в строке<textarea id="urlInput" rows="3" placeholder="videos/clip1.mp4, https://…/video.mp4, ссылка на YouTube или https://…/page.html" inputmode="url" autocapitalize="off"></textarea></label>
       <button class="btn red" type="button" id="addUrl"><svg class="i"><use href="#i-plus"/></svg>Опубликовать видео</button>
       <p class="warn">С устройства: до 90 МБ на файл (лимит GitHub). Без подключённого GitHub видео с устройства видно только до перезагрузки страницы.</p>
     </div>
@@ -354,10 +358,11 @@ function sortVideos() { videos.sort((a, b) => (b.date || '').localeCompare(a.dat
 
 /* ===== Лента ===== */
 const track = $('#track'), stage = $('#stage');
-let index = 0, locked = false, muted = false, pendingUnmute = false, unlockedAt = 0, currentTab = 'feed', userPaused = false, appReady = false, photoLock = false;
+let index = 0, locked = false, muted = false, pendingUnmute = false, unlockedAt = 0, hadGesture = false, currentTab = 'feed', userPaused = false, appReady = false, photoLock = false;
 
 function buildSlide(v) {
   if (v.type === 'photo') return buildPhotoSlide(v);
+  if (v.type === 'yt') return buildYtSlide(v);
   const slide = el('div', 'slide loading'); slide.dataset.id = v.id;
   const vid = document.createElement('video');
   vid.playsInline = true; vid.loop = true; vid.muted = true; vid.preload = 'metadata'; vid.setAttribute('playsinline', ''); vid.tabIndex = -1; vid.disablePictureInPicture = true; slide._tries = 0;
@@ -405,6 +410,7 @@ function ensureSrc(i) {
 }
 function playActive() {
   if (currentTab !== 'feed' || userPaused) return;
+  { const ys = track.children[index]; if (ys && ys._ytFrame) ytPost(ys._ytFrame, 'playVideo'); }
   const vid = $('video', track.children[index] || document.body); if (!vid || !vid.getAttribute('src')) return;
   vid.muted = muted;
   const p = vid.play();
@@ -424,6 +430,7 @@ function applyPosition(instant) {
   });
   playActive();
   restartPhotoTimer();
+  ytSync();
   glowDate();
   maybeTutorial();
 }
@@ -441,6 +448,7 @@ function goTo(i) {
 function syncSound() {
   const b = $('#sound'); b.setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
   b.querySelector('use').setAttribute('href', muted ? '#i-mute' : '#i-vol');
+  ytApplyMute();
 }
 function initFeedControls() {
   let start = null, last = null;
@@ -475,6 +483,7 @@ function initFeedControls() {
   $('#sound').addEventListener('click', () => { pendingUnmute = false; muted = !muted; syncSound(); playActive(); });
   // Если система не дала включить звук без касания, включаем его при самом первом касании экрана
   const unlockSound = e => {
+    hadGesture = true;
     if (!pendingUnmute || (e.target && e.target.closest && e.target.closest('#sound'))) return;
     pendingUnmute = false; muted = false; unlockedAt = Date.now(); syncSound(); playActive();
   };
@@ -506,7 +515,7 @@ function initSecretTap() {
   });
 }
 function openGate() { $('#gateInput').value = ''; $('#gateMsg').textContent = ''; gate.hidden = false; $('#gateInput').focus(); pauseAll(); }
-function pauseAll() { track.querySelectorAll('video').forEach(v => v.pause()); }
+function pauseAll() { track.querySelectorAll('video').forEach(v => v.pause()); track.querySelectorAll('.ytframe').forEach(f => ytPost(f, 'pauseVideo')); }
 function closeModal() { gate.hidden = true; if (currentTab === 'feed') playActive(); }
 function revealAdminTab(show) {
   adminUnlocked = show; $('#tab-admin').hidden = !show; $('#tabs').style.setProperty('--cols', show ? 2 : 1);
@@ -522,14 +531,15 @@ function renderAdminList() {
   videos.forEach((v, n) => {
     const row = el('div', 'item'); const info = el('div');
     const thumb = el('div', 'thumb'); thumb.appendChild(icon(v.type === 'photo' ? 'i-up' : 'i-film'));
-    if (v.type === 'photo') { const im = document.createElement('img'); im.src = absU((v.prevImages || v.images)[0]); im.alt = ''; im.addEventListener('error', () => im.remove()); thumb.appendChild(im); }
+    if (v.type === 'yt') { const im = document.createElement('img'); im.src = 'https://i.ytimg.com/vi/' + v.yt + '/default.jpg'; im.alt = ''; im.addEventListener('error', () => im.remove()); thumb.appendChild(im); }
+    else if (v.type === 'photo') { const im = document.createElement('img'); im.src = absU((v.prevImages || v.images)[0]); im.alt = ''; im.addEventListener('error', () => im.remove()); thumb.appendChild(im); }
     else { const tv = document.createElement('video'); tv.muted = true; tv.playsInline = true; tv.preload = 'metadata'; tv.setAttribute('playsinline', ''); tv.tabIndex = -1; tv.addEventListener('error', () => tv.remove()); tv.src = absU(v.prev || v.url) + '#t=0.1'; thumb.appendChild(tv); }
     thumb.appendChild(el('span', 'num', String(n + 1)));
     const dt = document.createElement('input'); dt.type = 'date'; dt.value = v.date || ''; dt.setAttribute('aria-label', 'Дата публикации');
     dt.addEventListener('change', () => { if (!dt.value) return; v.date = dt.value; sortVideos(); saveVideos(); renderFeed(); renderAdminList(); setAdminMsg('Дата обновлена.', 'ok'); syncGh('Дата обновлена.'); });
     const isPhoto = v.type === 'photo';
     const title = isPhoto ? `Фото (${v.images.length})` + (v.text ? ': ' + v.text : '') : (v.local ? v.name || 'Файл с устройства' : v.url);
-    const head = el('strong'); head.append(el('span', 'tag', isPhoto ? 'Фото' : 'Видео'), document.createTextNode(title));
+    const head = el('strong'); head.append(el('span', 'tag', isPhoto ? 'Фото' : v.type === 'yt' ? 'YouTube' : 'Видео'), document.createTextNode(title));
     info.append(head, el('small', '', v.local ? 'Только в этой сессии' : 'Дата: ' + formatDate(v.date)), dt);
     const del = el('button', 'btn red'); del.type = 'button'; del.setAttribute('aria-label', 'Удалить ' + (isPhoto ? 'фото' : 'видео') + ' ' + formatDate(v.date)); del.append(icon('i-trash'), document.createTextNode('Удалить'));
     del.addEventListener('click', () => removeVideo(v.id));
@@ -613,6 +623,8 @@ async function addByUrl() {
   // 2) Ссылки
   for (let i = 0; i < raws.length && !failMsg; i++) {
     setAdminMsg('Проверяем ссылки: ' + (i + 1) + ' из ' + raws.length);
+    const yid = ytId(raws[i]);
+    if (yid) { videos.push({ id: 'y' + Date.now() + Math.random().toString(36).slice(2, 5), type: 'yt', yt: yid, url: 'https://youtu.be/' + yid, date }); ok++; continue; }
     const res = await resolveVideoUrl(raws[i]);
     if (!res) { bad.push(raws[i]); continue; }
     videos.push({ id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date }); ok++;
@@ -753,6 +765,52 @@ function initAdmin() {
 function revokeLocal(v) {
   (v.type === 'photo' ? v.images : [v.url, v.prev]).forEach(u => { if (typeof u === 'string' && u.startsWith('blob:')) URL.revokeObjectURL(u); });
 }
+/* ===== YouTube: сначала превью-картинка 2 секунды, потом само видео ===== */
+function ytId(raw) {
+  try {
+    const u = new URL(String(raw).trim()), h = u.hostname.replace(/^(www|m|music)\./, '');
+    let id = '';
+    if (h === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+    else if (h === 'youtube.com' || h === 'youtube-nocookie.com') id = u.searchParams.get('v') || (/^\/(shorts|embed|live|v)\/([\w-]{11})/.exec(u.pathname) || [])[2] || '';
+    return /^[\w-]{11}$/.test(id) ? id : '';
+  } catch (e) { return ''; }
+}
+function buildYtSlide(v) {
+  const slide = el('div', 'slide yt'); slide.dataset.id = v.id; slide._yt = v.yt;
+  const img = document.createElement('img'); img.className = 'ytprev'; img.alt = ''; img.draggable = false;
+  img.src = 'https://i.ytimg.com/vi/' + v.yt + '/hqdefault.jpg';
+  img.addEventListener('error', () => { img.src = 'https://img.youtube.com/vi/' + v.yt + '/hqdefault.jpg'; }, { once: true });
+  slide.append(img, el('div', 'date', formatDate(v.date)), buildPP());
+  return slide;
+}
+function ytPost(f, fn) { try { f.contentWindow.postMessage(JSON.stringify({ event: 'command', func: fn, args: [] }), '*'); } catch (e) {} }
+function ytStart(sl) {
+  if (sl._ytFrame) return;
+  if (!hadGesture && !muted) { muted = true; pendingUnmute = true; syncSound(); } // без касания YouTube не даст звук: включим при первом касании
+  const f = document.createElement('iframe'); f.className = 'ytframe';
+  f.allow = 'autoplay; encrypted-media; picture-in-picture'; f.setAttribute('playsinline', ''); f.tabIndex = -1;
+  const org = REMOTE ? '&origin=' + encodeURIComponent(location.origin) : '';
+  f.src = 'https://www.youtube-nocookie.com/embed/' + sl._yt + '?autoplay=1&playsinline=1&controls=0&rel=0&modestbranding=1&iv_load_policy=3&fs=0&disablekb=1&loop=1&playlist=' + sl._yt + '&enablejsapi=1&mute=' + (muted ? 1 : 0) + org;
+  f.addEventListener('load', () => { f.classList.add('on'); if (!muted) ytPost(f, 'unMute'); });
+  sl._ytFrame = f; sl.insertBefore(f, sl.querySelector('.date'));
+}
+function ytSync() { // активный YouTube-слайд: 2 секунды превью, затем плеер; остальные выключаем
+  [...track.children].forEach((sl, i) => {
+    if (!sl._yt) return;
+    if (i === index && currentTab === 'feed' && appReady) {
+      if (!sl._ytFrame && !sl._ytT) sl._ytT = setTimeout(() => { sl._ytT = 0; if (sl === track.children[index] && currentTab === 'feed') ytStart(sl); }, 2000);
+    } else {
+      clearTimeout(sl._ytT); sl._ytT = 0;
+      if (sl._ytFrame) { sl._ytFrame.remove(); sl._ytFrame = null; sl.classList.remove('paused'); }
+    }
+  });
+}
+function ytApplyMute() { const sl = track.children[index]; if (sl && sl._ytFrame) ytPost(sl._ytFrame, muted ? 'mute' : 'unMute'); }
+function ytToggle(sl) {
+  if (!sl._ytFrame) return; // превью ещё показывается
+  if (userPaused) { userPaused = false; sl.classList.remove('paused'); ytPost(sl._ytFrame, 'playVideo'); showPP($('.pp', sl), false); }
+  else { userPaused = true; sl.classList.add('paused'); ytPost(sl._ytFrame, 'pauseVideo'); showPP($('.pp', sl), true); }
+}
 function buildPP() { const pp = el('div', 'pp'); pp.setAttribute('aria-hidden', 'true'); pp.appendChild(icon('i-play')); return pp; }
 function showPP(pp, paused) {
   if (!pp) return;
@@ -775,6 +833,7 @@ function tapStage(e) {
   } else togglePause();
 }
 function togglePause() {
+  { const ys = track.children[index]; if (ys && ys._yt) { ytToggle(ys); return; } }
   if (currentTab !== 'feed') return;
   const slide = track.children[index], vid = slide && $('video', slide);
   if (!vid || !vid.getAttribute('src')) return;
@@ -923,7 +982,7 @@ async function init() {
   initTabs(); initFeedControls(); initAdmin(); syncSound(); renderFeed();
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen()) playActive(); });
   setTimeout(() => {
-    $('#loader').classList.add('done'); appReady = true; playActive(); glowDate(); setTimeout(maybeTutorial, 900);
+    $('#loader').classList.add('done'); appReady = true; playActive(); ytSync(); glowDate(); setTimeout(maybeTutorial, 900);
     const n = countNewVideos();
     toast(n > 0 ? `Добавлено новых: ${n}` : 'Все видео обновлены', false, 3500);
     setTimeout(() => $('#loader').remove(), 600);
