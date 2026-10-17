@@ -119,7 +119,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 .progHit{position:absolute;left:0;right:0;bottom:var(--safe-bottom);height:28px;z-index:2;touch-action:none}
 /* Фото */
 .slide.photo{background:#05070c;overflow:hidden}
-.strip{display:flex;height:100%;transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.strip{display:flex;height:100%;transition:transform .7s cubic-bezier(.45,0,.2,1)}
 .pframe{position:relative;flex:0 0 100%;height:100%}
 .pframe img{width:100%;height:100%;object-fit:contain;display:block;-webkit-user-drag:none}
 .pfail{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:17px;color:var(--muted)}
@@ -278,13 +278,34 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 const DEMO_ADMIN_ID = '0001', ADMIN_KEY = 'grandpa.admin.v1';
 const SECRET_TAPS = 4, TAP_WINDOW_MS = 3000, SWIPE_MIN_PX = 50, LOCK_MS = 600;
 const STORE_KEY = 'grandpa.videos.v1', SEEN_KEY = 'grandpa.seen.v1';
-const SAMPLE = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/';
-const DEMO_VIDEOS = [
-  { id: 'd1', url: SAMPLE + 'ForBiggerBlazes.mp4', date: '2026-10-14' },
-  { id: 'd2', url: SAMPLE + 'ForBiggerEscapes.mp4', date: '2026-10-10' },
-  { id: 'd3', url: SAMPLE + 'ForBiggerJoyrides.mp4', date: '2026-10-05' },
-  { id: 'd4', url: SAMPLE + 'ForBiggerMeltdowns.mp4', date: '2026-09-28' }
-];
+// Адрес сайта с videos.json и папками videos/ photos/. Нужен, только если приложение (APK) открывается не с самого сайта.
+// Пример: const SITE_URL = 'https://ВАШ-ЛОГИН.github.io/НАЗВАНИЕ-РЕПО/';  (или адрес на vercel.app)
+const SITE_URL = '';
+// Репозиторий GitHub с видео, например 'scorpiodesign12-collab/sdasd'. Нужен для запасной загрузки, если сайт без VPN открывается плохо.
+const MIRROR_REPO = '';
+const DEMO_VIDEOS = [];
+const REMOTE = /^https?:$/.test(location.protocol) && !/^(localhost$|127\.|10\.|192\.168\.|appassets\.androidplatform\.net$)/i.test(location.hostname);
+function siteBase() {
+  if (SITE_URL) return SITE_URL.replace(/\/?$/, '/');
+  if (REMOTE) { try { return new URL('.', location.href).href; } catch (e) {} }
+  if (typeof gh !== 'undefined' && gh.repo) { const [o, r] = gh.repo.split('/'); return 'https://' + o.toLowerCase() + '.github.io/' + r + '/'; }
+  return '';
+}
+function absU(u) { // относительный путь (videos/1.mp4) -> полный адрес сайта; так работает и внутри APK
+  if (typeof u !== 'string' || /^(https?:|blob:|data:)/i.test(u)) return u;
+  const b = siteBase(); try { return b ? new URL(u, b).href : u; } catch (e) { return u; }
+}
+function repoInfo() {
+  if (MIRROR_REPO) return { repo: MIRROR_REPO, branch: 'main' };
+  if (typeof gh !== 'undefined' && gh.repo) return { repo: gh.repo, branch: gh.branch || 'main' };
+  try { const u = new URL(siteBase()), m = /^([^.]+)\.github\.io$/i.exec(u.hostname); if (m) return { repo: m[1] + '/' + (u.pathname.split('/')[1] || m[1] + '.github.io'), branch: 'main' }; } catch (e) {}
+  return null;
+}
+function mirrorOf(u) { // запасной путь через jsDelivr, если github.io не открывается без VPN
+  if (typeof u !== 'string' || /^(https?:|blob:|data:)/i.test(u)) return null;
+  const ri = repoInfo(); return ri ? 'https://cdn.jsdelivr.net/gh/' + ri.repo + '@' + ri.branch + '/' + u.replace(/^\.?\//, '') : null;
+}
+function srcList(v) { if (v.prev) return [v.prev]; const a = [absU(v.url)], m = mirrorOf(v.url); if (m) a.push(m); return a; }
 
 /* ===== Утилиты ===== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -306,8 +327,20 @@ let videos = [];
 const HIDDEN_KEY = 'grandpa.hidden.v1'; let hidden = [];
 try { hidden = JSON.parse(localStorage.getItem(HIDDEN_KEY)) || []; } catch (e) {}
 const okItem = v => v && (typeof v.url === 'string' || Array.isArray(v.images));
+const PUB_CACHE = 'grandpa.pub.v1';
 async function loadPublished() { // videos.json лежит рядом с index.html в репозитории: его видят все
-  try { const r = await fetch('videos.json?' + Date.now(), { cache: 'no-store' }); if (!r.ok) return null; const a = await r.json(); return Array.isArray(a) ? a.filter(okItem) : null; } catch (e) { return null; }
+  const urls = [absU('videos.json')], m = mirrorOf('videos.json'); if (m) urls.push(m);
+  for (const u of urls) {
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(u + (u.includes('?') ? '&' : '?') + Date.now(), { cache: 'no-store', signal: ctl.signal }); clearTimeout(t);
+      if (!r.ok) continue;
+      const a = await r.json();
+      if (Array.isArray(a)) { const f = a.filter(okItem); try { localStorage.setItem(PUB_CACHE, JSON.stringify(f)); } catch (e) {} return f; }
+    } catch (e) {}
+  }
+  try { const c = JSON.parse(localStorage.getItem(PUB_CACHE)); if (Array.isArray(c)) return c.filter(okItem); } catch (e) {} // последний удачный список
+  return null;
 }
 function loadVideos(pub) {
   let local = []; try { const a = JSON.parse(localStorage.getItem(STORE_KEY)); if (Array.isArray(a)) local = a.filter(okItem); } catch (e) {}
@@ -321,7 +354,7 @@ function sortVideos() { videos.sort((a, b) => (b.date || '').localeCompare(a.dat
 
 /* ===== Лента ===== */
 const track = $('#track'), stage = $('#stage');
-let index = 0, locked = false, muted = true, currentTab = 'feed', userPaused = false, appReady = false, photoLock = false;
+let index = 0, locked = false, muted = false, pendingUnmute = false, unlockedAt = 0, currentTab = 'feed', userPaused = false, appReady = false, photoLock = false;
 
 function buildSlide(v) {
   if (v.type === 'photo') return buildPhotoSlide(v);
@@ -333,6 +366,8 @@ function buildSlide(v) {
   vid.addEventListener('waiting', () => slide.classList.add('loading'));
   vid.addEventListener('error', () => {
     if (!vid.getAttribute('src')) return;
+    const list = srcList(v);
+    if ((slide._ci || 0) < list.length - 1) { slide._ci = (slide._ci || 0) + 1; slide._tries = 0; vid.src = list[slide._ci]; if (slide === track.children[index]) playActive(); return; } // запасной адрес
     if (slide._tries < 2) { slide._tries++; setTimeout(() => { vid.load(); if (slide === track.children[index]) playActive(); }, 1500); return; } // две автоповторные попытки
     slide.classList.remove('loading'); slide.classList.add('error');
   });
@@ -343,7 +378,7 @@ function buildSlide(v) {
   load.replaceChildren(sp);
   const err = el('div', 'vstate err'); err.appendChild(el('p', '', 'Не удалось загрузить видео. Проверьте интернет или ссылку.'));
   const retry = el('button', 'btn'); retry.type = 'button'; retry.append(icon('i-retry'), document.createTextNode('Повторить'));
-  retry.addEventListener('click', () => { slide.classList.remove('error'); slide.classList.add('loading'); vid.load(); if (slide === track.children[index]) playActive(); });
+  retry.addEventListener('click', () => { slide.classList.remove('error'); slide.classList.add('loading'); slide._ci = 0; slide._tries = 0; const l0 = srcList(v)[0]; if (vid.getAttribute('src') !== l0) vid.src = l0; else vid.load(); if (slide === track.children[index]) playActive(); });
   err.appendChild(retry);
   const prog = el('div', 'prog'), bar = el('i'), hit = el('div', 'progHit'); prog.appendChild(bar);
   vid.addEventListener('timeupdate', () => { if (vid.duration && !slide.classList.contains('scrub')) bar.style.width = (vid.currentTime / vid.duration * 100) + '%'; });
@@ -366,14 +401,14 @@ function renderFeed() {
 function ensureSrc(i) {
   const slide = track.children[i]; if (!slide || !videos[i]) return;
   const vid = $('video', slide); if (!vid) return;
-  const src = videos[i].prev || videos[i].url; if (vid.getAttribute('src') !== src) vid.src = src;
+  const list = srcList(videos[i]), src = list[Math.min(slide._ci || 0, list.length - 1)]; vid.preload = i === index ? 'auto' : 'metadata'; if (vid.getAttribute('src') !== src) vid.src = src;
 }
 function playActive() {
   if (currentTab !== 'feed' || userPaused) return;
   const vid = $('video', track.children[index] || document.body); if (!vid || !vid.getAttribute('src')) return;
   vid.muted = muted;
   const p = vid.play();
-  if (p && p.catch) p.catch(() => { if (!vid.muted) { muted = true; vid.muted = true; syncSound(); vid.play().catch(() => {}); } });
+  if (p && p.catch) p.catch(() => { if (!vid.muted) { muted = true; pendingUnmute = true; vid.muted = true; syncSound(); vid.play().catch(() => {}); } });
 }
 function applyPosition(instant) {
   if (!videos.length) return;
@@ -388,6 +423,7 @@ function applyPosition(instant) {
     if (vid && i !== index) { vid.pause(); try { vid.currentTime = 0; } catch (e) {} }
   });
   playActive();
+  restartPhotoTimer();
   glowDate();
   maybeTutorial();
 }
@@ -436,7 +472,13 @@ function initFeedControls() {
     if (e.key === 'ArrowLeft') { e.preventDefault(); stepPhoto(-1); }
     if (e.key === ' ' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); togglePause(); }
   });
-  $('#sound').addEventListener('click', () => { muted = !muted; syncSound(); playActive(); });
+  $('#sound').addEventListener('click', () => { pendingUnmute = false; muted = !muted; syncSound(); playActive(); });
+  // Если система не дала включить звук без касания, включаем его при самом первом касании экрана
+  const unlockSound = e => {
+    if (!pendingUnmute || (e.target && e.target.closest && e.target.closest('#sound'))) return;
+    pendingUnmute = false; muted = false; unlockedAt = Date.now(); syncSound(); playActive();
+  };
+  ['pointerdown', 'touchstart', 'keydown'].forEach(n => document.addEventListener(n, unlockSound, true));
 }
 
 /* ===== Вкладки ===== */
@@ -480,8 +522,8 @@ function renderAdminList() {
   videos.forEach((v, n) => {
     const row = el('div', 'item'); const info = el('div');
     const thumb = el('div', 'thumb'); thumb.appendChild(icon(v.type === 'photo' ? 'i-up' : 'i-film'));
-    if (v.type === 'photo') { const im = document.createElement('img'); im.src = (v.prevImages || v.images)[0]; im.alt = ''; im.addEventListener('error', () => im.remove()); thumb.appendChild(im); }
-    else { const tv = document.createElement('video'); tv.muted = true; tv.playsInline = true; tv.preload = 'metadata'; tv.setAttribute('playsinline', ''); tv.tabIndex = -1; tv.addEventListener('error', () => tv.remove()); tv.src = (v.prev || v.url) + '#t=0.1'; thumb.appendChild(tv); }
+    if (v.type === 'photo') { const im = document.createElement('img'); im.src = absU((v.prevImages || v.images)[0]); im.alt = ''; im.addEventListener('error', () => im.remove()); thumb.appendChild(im); }
+    else { const tv = document.createElement('video'); tv.muted = true; tv.playsInline = true; tv.preload = 'metadata'; tv.setAttribute('playsinline', ''); tv.tabIndex = -1; tv.addEventListener('error', () => tv.remove()); tv.src = absU(v.prev || v.url) + '#t=0.1'; thumb.appendChild(tv); }
     thumb.appendChild(el('span', 'num', String(n + 1)));
     const dt = document.createElement('input'); dt.type = 'date'; dt.value = v.date || ''; dt.setAttribute('aria-label', 'Дата публикации');
     dt.addEventListener('change', () => { if (!dt.value) return; v.date = dt.value; sortVideos(); saveVideos(); renderFeed(); renderAdminList(); setAdminMsg('Дата обновлена.', 'ok'); syncGh('Дата обновлена.'); });
@@ -719,6 +761,7 @@ function showPP(pp, paused) {
 }
 function resetPause() { userPaused = false; track.querySelectorAll('.paused').forEach(x => x.classList.remove('paused')); track.querySelectorAll('.pp').forEach(p => p.classList.remove('show', 'flash')); }
 function tapStage(e) {
+  if (Date.now() - unlockedAt < 700) return; // первое касание только включило звук, не ставим на паузу
   const slide = track.children[index], vid = slide && $('video', slide);
   if (!vid || !vid.getAttribute('src') || currentTab !== 'feed') { togglePause(); return; }
   const r = stage.getBoundingClientRect(), k = (e.clientX - r.left) / r.width;
@@ -743,7 +786,7 @@ function buildPhotoSlide(v) {
   const strip = el('div', 'strip');
   (v.prevImages || v.images).forEach((src, i) => {
     const frame = el('div', 'pframe'), img = document.createElement('img');
-    img.src = src; img.alt = `Фото ${i + 1} из ${v.images.length}`; img.draggable = false;
+    img.src = absU(src); img.alt = `Фото ${i + 1} из ${v.images.length}`; img.draggable = false;
     img.addEventListener('error', () => frame.classList.add('bad'));
     frame.append(img, el('div', 'pfail', 'Не удалось загрузить фото. Проверьте интернет или ссылку.'));
     strip.appendChild(frame);
@@ -756,14 +799,28 @@ function buildPhotoSlide(v) {
   slide.append(dots, el('div', 'date', formatDate(v.date)));
   return slide;
 }
-function stepPhoto(dir) {
+function stepPhoto(dir, auto) {
   const v = videos[index], slide = track.children[index];
   if (!v || v.type !== 'photo' || photoLock || currentTab !== 'feed') return;
+  if (!auto) { slide._dir = dir; restartPhotoTimer(); }
   const next = Math.max(0, Math.min(v.images.length - 1, slide._pi + dir));
   if (next === slide._pi) return;
   slide._pi = next; slide._strip.style.transform = `translateX(${-next * 100}%)`;
   [...slide._dots.children].forEach((d, i) => d.classList.toggle('on', i === next));
-  photoLock = true; setTimeout(() => { photoLock = false; }, reduceMotion() ? 50 : 300);
+  photoLock = true; setTimeout(() => { photoLock = false; }, reduceMotion() ? 50 : 450);
+}
+// Фото листаются сами: каждые 3 секунды плавно вправо до конца, потом влево назад
+let photoTimer = 0;
+function restartPhotoTimer() {
+  clearInterval(photoTimer);
+  const v = videos[index]; if (!v || v.type !== 'photo' || !v.images || v.images.length < 2) return;
+  photoTimer = setInterval(() => {
+    const slide = track.children[index];
+    if (!slide || !slide._strip || currentTab !== 'feed' || document.hidden || anyModalOpen()) return;
+    if (slide._dir == null) slide._dir = 1;
+    const nx = slide._pi + slide._dir; if (nx > v.images.length - 1 || nx < 0) slide._dir *= -1;
+    stepPhoto(slide._dir, true);
+  }, 3000);
 }
 // Фото с телефона бывают огромными: уменьшаем до 2048 px (JPEG), так они быстро и без ошибок грузятся на GitHub.
 function shrinkImage(file) {
@@ -860,7 +917,9 @@ function countNewVideos() {
 }
 async function init() {
   await restoreGh();
-  videos = shuffle(loadVideos(await loadPublished()));
+  const pub0 = await loadPublished();
+  videos = shuffle(loadVideos(pub0));
+  if (!pub0) setTimeout(() => toast('Не удалось загрузить список видео. Проверьте интернет.', true, 4000), 2500);
   initTabs(); initFeedControls(); initAdmin(); syncSound(); renderFeed();
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen()) playActive(); });
   setTimeout(() => {
