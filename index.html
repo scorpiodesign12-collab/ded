@@ -541,8 +541,11 @@ function renderAdminList() {
     const title = isPhoto ? `Фото (${v.images.length})` + (v.text ? ': ' + v.text : '') : (v.local ? v.name || 'Файл с устройства' : v.url);
     const head = el('strong'); head.append(el('span', 'tag', isPhoto ? 'Фото' : v.type === 'yt' ? 'YouTube' : 'Видео'), document.createTextNode(title));
     info.append(head, el('small', '', v.local ? 'Только в этой сессии' : 'Дата: ' + formatDate(v.date)), dt);
-    const del = el('button', 'btn red'); del.type = 'button'; del.setAttribute('aria-label', 'Удалить ' + (isPhoto ? 'фото' : 'видео') + ' ' + formatDate(v.date)); del.append(icon('i-trash'), document.createTextNode('Удалить'));
-    del.addEventListener('click', () => removeVideo(v.id));
+    const del = el('button', 'btn red'); del.type = 'button'; del.setAttribute('aria-label', 'Удалить ' + (isPhoto ? 'фото' : 'видео') + ' ' + formatDate(v.date)); const delTxt = document.createTextNode('Удалить'); del.append(icon('i-trash'), delTxt);
+    del.addEventListener('click', () => { // первое нажатие просит подтвердить, второе удаляет
+      if (!del._armed) { del._armed = true; delTxt.nodeValue = 'Точно удалить?'; clearTimeout(del._t); del._t = setTimeout(() => { del._armed = false; delTxt.nodeValue = 'Удалить'; }, 4000); return; }
+      clearTimeout(del._t); del.disabled = true; delTxt.nodeValue = 'Удаляем…'; removeVideo(v.id);
+    });
     row.append(thumb, info, del); box.appendChild(row);
   });
 }
@@ -551,7 +554,6 @@ async function ghDeleteFile(path) { // убрать файл из репозит
 }
 async function removeVideo(id) {
   const v = videos.find(x => x.id === id); if (!v) return;
-  if (!confirm(v.type === 'photo' ? 'Удалить эту публикацию с фото?' : 'Удалить это видео?')) return;
   const files = (v.type === 'photo' ? v.images : [v.url]).filter(u => /^(videos|photos)\//.test(u));
   const wasPub = !!v.pub;
   revokeLocal(v); // освобождаем объектные URL
@@ -592,6 +594,44 @@ async function resolveVideoUrl(raw) {
   } catch (e) {}
   return null;
 }
+// У многих роликов с телефона служебный блок moov стоит в конце файла, и плеер не начинает играть, пока не скачает всё видео.
+// Перед загрузкой переносим его в начало (как делает ffmpeg -movflags +faststart).
+async function faststart(file) {
+  try {
+    if (!/\.(mp4|m4v|mov)$/i.test(file.name || '') && !/mp4|quicktime/.test(file.type || '')) return file;
+    const buf = new Uint8Array(await file.arrayBuffer()), dv = new DataView(buf.buffer), boxes = [], T = (a, o) => String.fromCharCode(a[o], a[o + 1], a[o + 2], a[o + 3]);
+    let p = 0;
+    while (p + 8 <= buf.length) {
+      let size = dv.getUint32(p), hdr = 8; const type = T(buf, p + 4);
+      if (size === 1) { if (p + 16 > buf.length) return file; size = Number(dv.getBigUint64(p + 8)); hdr = 16; } else if (size === 0) size = buf.length - p;
+      if (size < hdr || p + size > buf.length) return file;
+      boxes.push({ type, start: p, size, hdr }); p += size;
+    }
+    if (p !== buf.length || boxes.some(b => b.type === 'moof')) return file;
+    const mi = boxes.findIndex(b => b.type === 'moov'), di = boxes.findIndex(b => b.type === 'mdat');
+    if (mi < 0 || di < 0 || mi < di) return file; // moov уже в начале
+    const moov = boxes[mi], mc = buf.slice(moov.start, moov.start + moov.size), mv = new DataView(mc.buffer), CONT = ['trak', 'mdia', 'minf', 'stbl'];
+    const patch = (from, to) => {
+      let q = from;
+      while (q + 8 <= to) {
+        let sz = mv.getUint32(q), h = 8; const t = T(mc, q + 4);
+        if (sz === 1) { sz = Number(mv.getBigUint64(q + 8)); h = 16; } else if (sz === 0) sz = to - q;
+        if (sz < h || q + sz > to) return false;
+        if (t === 'stco') { const n = mv.getUint32(q + h + 4); for (let i = 0; i < n; i++) { const o = q + h + 8 + i * 4, val = mv.getUint32(o) + moov.size; if (val > 0xFFFFFFFF) return false; mv.setUint32(o, val); } }
+        else if (t === 'co64') { const n = mv.getUint32(q + h + 4); for (let i = 0; i < n; i++) { const o = q + h + 8 + i * 8; mv.setBigUint64(o, mv.getBigUint64(o) + BigInt(moov.size)); } }
+        else if (CONT.includes(t)) { if (!patch(q + h, q + sz)) return false; }
+        q += sz;
+      }
+      return true;
+    };
+    if (!patch(moov.hdr, moov.size)) return file;
+    const parts = [], first = boxes[0].type === 'ftyp' ? 0 : -1;
+    if (first === 0) parts.push(buf.subarray(boxes[0].start, boxes[0].start + boxes[0].size));
+    parts.push(mc);
+    boxes.forEach((b, i) => { if (i !== mi && i !== first) parts.push(buf.subarray(b.start, b.start + b.size)); });
+    return new File(parts, file.name, { type: file.type || 'video/mp4' });
+  } catch (e) { return file; }
+}
 async function addByUrl() {
   const date = $('#dateInput').value;
   if (!date) return setAdminMsg('Выберите дату публикации.', 'bad');
@@ -612,7 +652,8 @@ async function addByUrl() {
         const id = 'v' + Date.now() + Math.random().toString(36).slice(2, 5);
         if (ghOn()) {
           if (d.file.size > MAX_VIDEO) throw new Error('Видео больше 90 МБ');
-          const path = await ghUpload('videos', d.file, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; });
+          row.p.textContent = 'Готовим…'; const fsFile = await faststart(d.file);
+          const path = await ghUpload('videos', fsFile, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; });
           videos.push({ id, url: path, prev: d.url, name: d.name, date });
         } else videos.push({ id, url: d.url, name: d.name, date, local: true });
         row.r.className = 'up done'; row.p.textContent = 'Готово ✓'; ok++;
@@ -980,6 +1021,13 @@ async function init() {
   videos = shuffle(loadVideos(pub0));
   if (!pub0) setTimeout(() => toast('Не удалось загрузить список видео. Проверьте интернет.', true, 4000), 2500);
   initTabs(); initFeedControls(); initAdmin(); syncSound(); renderFeed();
+  setInterval(() => { // видео висит на загрузке больше 9 секунд: пробуем запасной адрес один раз
+    const sl = track.children[index]; if (!sl) return;
+    const vid = $('video', sl);
+    if (!vid || !vid.getAttribute('src') || !sl.classList.contains('loading') || currentTab !== 'feed' || document.hidden || vid.readyState >= 3) { sl._ls = 0; return; }
+    sl._ls = sl._ls || Date.now();
+    if (Date.now() - sl._ls > 9000 && !sl._swapped) { const list = srcList(videos[index]); sl._ls = 0; if (list.length > 1) { sl._swapped = true; sl._ci = 1; vid.src = list[1]; playActive(); } }
+  }, 1500);
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen()) playActive(); });
   setTimeout(() => {
     $('#loader').classList.add('done'); appReady = true; playActive(); ytSync(); glowDate(); setTimeout(maybeTutorial, 900);
