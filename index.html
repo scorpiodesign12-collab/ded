@@ -632,13 +632,25 @@ async function faststart(file) {
     return new File(parts, file.name, { type: file.type || 'video/mp4' });
   } catch (e) { return file; }
 }
+function sameSite(u) { try { return new URL(u).origin === location.origin || (siteBase() && new URL(u).origin === new URL(siteBase()).origin); } catch (e) { return false; } }
+async function importRemote(url) { // скачивает ролик по прямой ссылке (работает, если источник разрешает чтение с других сайтов)
+  const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
+  if (!r.ok) throw new Error('Источник ответил ' + r.status);
+  if ((+r.headers.get('content-length') || 0) > MAX_VIDEO) throw new Error('Видео больше 90 МБ');
+  const blob = await r.blob();
+  if (blob.size > MAX_VIDEO) throw new Error('Видео больше 90 МБ');
+  if (blob.size < 20000 || /text\/html/i.test(blob.type)) throw new Error('Это не видеофайл');
+  let name = ''; try { name = decodeURIComponent(new URL(url).pathname.split('/').pop() || ''); } catch (e) {}
+  if (!VIDEO_EXT.test(name)) name = 'video' + (/webm/i.test(blob.type) ? '.webm' : '.mp4');
+  return new File([blob], name, { type: /^video\//.test(blob.type) ? blob.type : 'video/mp4' });
+}
 async function addByUrl() {
   const date = $('#dateInput').value;
   if (!date) return setAdminMsg('Выберите дату публикации.', 'bad');
   const raws = $('#urlInput').value.split('\n').map(x => x.trim()).filter(Boolean);
   if (!raws.length && !videoDraft.length) return setAdminMsg('Выберите видео с устройства или вставьте ссылку.', 'bad');
-  if (raws.length > 20 || videoDraft.length > 20) return setAdminMsg('За раз не больше 20 видео.', 'bad');
-  const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [], failMsg = '';
+  if (raws.length + videoDraft.length > 50) return setAdminMsg('За раз не больше 50 видео (сейчас выбрано ' + (raws.length + videoDraft.length) + '). Добавьте остальные следующим заходом.', 'bad');
+  const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [], failMsg = '', copied = 0, kept = 0;
   // 1) Файлы с устройства
   if (videoDraft.length) {
     const box = $('#upList'); box.replaceChildren();
@@ -668,7 +680,16 @@ async function addByUrl() {
     if (yid) { videos.push({ id: 'y' + Date.now() + Math.random().toString(36).slice(2, 5), type: 'yt', yt: yid, url: 'https://youtu.be/' + yid, date }); ok++; continue; }
     const res = await resolveVideoUrl(raws[i]);
     if (!res) { bad.push(raws[i]); continue; }
-    videos.push({ id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date }); ok++;
+    const item = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date };
+    if (ghOn() && /^https?:/i.test(res) && !sameSite(res)) { // копируем ролик на свой сайт: так он открывается и с VPN, и без
+      let f = null; const tag = 'Копируем ролик ' + (i + 1) + ' из ' + raws.length;
+      try { setAdminMsg(tag + ': скачиваем…'); f = await faststart(await importRemote(res)); } catch (e) { f = null; kept++; }
+      if (f) {
+        try { item.url = await ghUpload('videos', f, q => setAdminMsg(tag + ': ' + Math.round(q * 100) + '%'), m => setAdminMsg(m)); copied++; }
+        catch (e) { failMsg = e.message; bad.push(raws[i]); continue; }
+      }
+    }
+    videos.push(item); ok++;
   }
   if (failMsg) bad.push(...raws);
   btn.disabled = false;
@@ -679,6 +700,7 @@ async function addByUrl() {
   if (bad.length) toast('Не удалось добавить ссылок: ' + bad.length + '. Они остались в поле.', true, 6000);
   const hasTemp = videos.some(v => v.local);
   await syncGh('Добавлено видео: ' + ok + '.');
+  if (copied || kept) setAdminMsg('Добавлено видео: ' + ok + '. Скопировано на сайт: ' + copied + '.' + (kept ? ' Не удалось скопировать: ' + kept + ' (источник не разрешает). Они остались внешними ссылками и без VPN могут не открываться: скачайте такие ролики на телефон и загрузите файлом.' : ''), kept ? 'bad' : 'ok');
   if (!ghOn()) setAdminMsg('Добавлено видео: ' + ok + '.' + (hasTemp ? ' Видео с устройства пропадёт после перезагрузки: подключите GitHub.' : ' Пока видно только в этом браузере.'), 'ok');
 }
 const GH_KEY = 'grandpa.gh.v1'; let gh = { repo: '', branch: 'main', token: '' };
@@ -923,23 +945,35 @@ function restartPhotoTimer() {
   }, 3000);
 }
 // Фото с телефона бывают огромными: уменьшаем до 2048 px (JPEG), так они быстро и без ошибок грузятся на GitHub.
-function shrinkImage(file) {
-  return new Promise(resolve => {
-    if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name || '')) return resolve(file);
-    const im = new Image(), src = URL.createObjectURL(file);
-    im.onerror = () => { URL.revokeObjectURL(src); resolve(file); };
-    im.onload = () => {
-      URL.revokeObjectURL(src);
-      const k = Math.min(1, 2048 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(im, 0, 0, w, h);
-      c.toBlob(b => {
-        if (!b || (b.size >= file.size && k === 1 && /jpe?g/i.test(file.type))) return resolve(file);
-        resolve(new File([b], (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }));
-      }, 'image/jpeg', 0.86);
-    };
-    im.src = src;
-  });
+async function shrinkImage(file) {
+  if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name || '')) return file;
+  let src = null, w0 = 0, h0 = 0, bm = null, im = null;
+  try {
+    if (window.createImageBitmap) { bm = await createImageBitmap(file); w0 = bm.width; h0 = bm.height; }
+  } catch (e) { bm = null; }
+  if (!bm) { // запасной путь через <img>; адрес освобождаем только после рисования
+    try {
+      src = URL.createObjectURL(file); im = new Image(); im.src = src;
+      await (im.decode ? im.decode() : new Promise((ok, no) => { im.onload = ok; im.onerror = no; }));
+      w0 = im.naturalWidth; h0 = im.naturalHeight;
+    } catch (e) { if (src) URL.revokeObjectURL(src); return file; }
+  }
+  try {
+    if (!w0 || !h0) return file;
+    const k = Math.min(1, 2048 / Math.max(w0, h0)), w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(bm || im, 0, 0, w, h);
+    // защита от «белых» фото: если после сжатия получилась пустая белая картинка, отправляем оригинал
+    const t = document.createElement('canvas'); t.width = t.height = 24; const tg = t.getContext('2d'); tg.drawImage(c, 0, 0, 24, 24);
+    const px = tg.getImageData(0, 0, 24, 24).data; let mn = 255, mx = 0;
+    for (let i = 0; i < px.length; i += 4) { const l = (px[i] + px[i + 1] + px[i + 2]) / 3; if (l < mn) mn = l; if (l > mx) mx = l; }
+    if (mn > 250 && mx - mn < 3) return file;
+    const blob = await new Promise(res => { try { c.toBlob(res, 'image/jpeg', 0.86); } catch (e) { res(null); } });
+    if (!blob || blob.size < 500) return file;
+    if (blob.size >= file.size && k === 1 && /jpe?g/i.test(file.type)) return file;
+    return new File([blob], (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch (e) { return file; }
+  finally { if (src) URL.revokeObjectURL(src); if (bm && bm.close) bm.close(); }
 }
 const TUT_KEY = 'grandpa.tut.v1';
 let tutSeen = {}, tutOpen = false, tutTimer = 0, tutQueue = [];
@@ -983,7 +1017,7 @@ async function addPhotoPost() {
   }
   const all = urls.concat(photoDraft.map(d => d.url));
   if (!all.length) return setAdminMsg('Вставьте ссылку на фото или выберите фото с устройства.', 'bad');
-  if (all.length > 20) return setAdminMsg('В одной публикации не больше 20 фото.', 'bad');
+  if (all.length > 50) return setAdminMsg('В одной публикации не больше 50 фото.', 'bad');
   const btn = $('#addPhotos'); btn.disabled = true; setAdminMsg('Проверяем фото…');
   const ok = (await Promise.all(urls.map(checkImage))).every(Boolean); btn.disabled = false;
   if (!ok) return setAdminMsg('Одно из фото не открывается. Источник мог запретить показ на чужих сайтах.', 'bad');
