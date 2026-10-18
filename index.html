@@ -563,18 +563,54 @@ function parseMatches(d) {
   });
   return out;
 }
+async function mFetch(url, ms) { // {data} или {why}: почему не получилось
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 9000);
+    const r = await fetch(url, { cache: 'no-store', signal: ctl.signal }); clearTimeout(t);
+    if (!r.ok) return { why: 'ответ ' + r.status };
+    return { data: await r.json() };
+  } catch (e) { return { why: e && e.name === 'AbortError' ? 'нет ответа за 9 с' : 'нет соединения или адрес заблокирован' }; }
+}
+// Резервный источник (TheSportsDB): только расписание и результаты, без живого счёта и авторов голов
+const TSD = 'https://www.thesportsdb.com/api/v1/json/3/';
+async function loadMatchesAlt() {
+  const [n, p] = await Promise.all([mFetch(TSD + 'eventsnextleague.php?id=4480'), mFetch(TSD + 'eventspastleague.php?id=4480')]);
+  const list = [].concat((n.data && n.data.events) || [], (p.data && p.data.events) || []); if (!list.length) return null;
+  const now = Date.now(), seen = new Set(), out = [];
+  list.forEach(e => {
+    if (!e || seen.has(e.idEvent)) return; seen.add(e.idEvent);
+    const ts = Date.parse(e.strTimestamp ? e.strTimestamp + (/Z|[+-]\d\d:?\d\d$/.test(e.strTimestamp) ? '' : 'Z') : (e.dateEvent || '') + 'T' + (e.strTime || '00:00:00') + 'Z') || 0;
+    const hs = e.intHomeScore, as = e.intAwayScore, has = hs != null && hs !== '' && as != null && as !== '', st = String(e.strStatus || '');
+    const state = /^(1H|2H|HT|ET|BT|P|LIVE)\b|live/i.test(st) ? 'in' : /finished|^FT$|^AET$|^PEN$/i.test(st) || (has && ts < now - 3 * 36e5) ? 'post' : 'pre';
+    const T = (nm, lg, sc) => ({ id: nm, name: ruTeam(nm), logo: lg || '', score: has ? Number(sc) : null, pen: null });
+    out.push({ id: 't' + e.idEvent, date: ts, state, name: state === 'post' ? 'STATUS_FULL_TIME' : '', clock: '', detail: '', h: T(e.strHomeTeam, e.strHomeTeamBadge, hs), a: T(e.strAwayTeam, e.strAwayTeamBadge, as), evs: [], venue: e.strVenue || '' });
+  });
+  return out;
+}
+let mAlt = false;
 async function loadMatches() {
   if (mLoading) return; mLoading = true;
-  const now = Date.now(), q = '?dates=' + ymd(new Date(now - 10 * 864e5)) + '-' + ymd(new Date(now + 30 * 864e5)) + '&limit=300';
+  const now = Date.now(), day = 864e5, rg = (a, b) => '?dates=' + ymd(new Date(now - a * day)) + '-' + ymd(new Date(now + b * day));
+  const variants = [rg(10, 30) + '&limit=300', rg(3, 10), ''], why = [];
   let data = null;
   for (const h of ESPN_HOSTS) {
-    try { const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000); const r = await fetch(h + ESPN_PATH + q, { cache: 'no-store', signal: ctl.signal }); clearTimeout(t); if (!r.ok) continue; data = await r.json(); if (data && data.events) break; } catch (e) {}
+    let fails = 0;
+    for (const v of variants) {
+      const r = await mFetch(h + ESPN_PATH + v);
+      if (r.data && Array.isArray(r.data.events)) { data = r.data; break; }
+      why.push(h.replace('https://', '') + ': ' + (r.why || 'пустой ответ')); fails++;
+      if (r.why && /нет соединения|нет ответа/.test(r.why) && fails >= 1) break; // хост недоступен, другие варианты запроса не помогут
+    }
+    if (data) break;
   }
+  let alt = null;
+  if (!data) alt = await loadMatchesAlt();
   mLoading = false;
-  if (data && data.events) { matches = parseMatches(data); mErr = ''; mUpdated = Date.now(); try { localStorage.setItem(M_CACHE, JSON.stringify({ t: mUpdated, m: matches })); } catch (e) {} }
+  if (data || alt) { matches = data ? parseMatches(data) : alt; mAlt = !data; mErr = ''; mUpdated = Date.now(); try { localStorage.setItem(M_CACHE, JSON.stringify({ t: mUpdated, m: matches, alt: mAlt })); } catch (e) {} }
   else {
-    if (!matches.length) { try { const c = JSON.parse(localStorage.getItem(M_CACHE)); if (c && Array.isArray(c.m)) { matches = c.m; mUpdated = c.t || 0; } } catch (e) {} }
-    mErr = matches.length ? 'Нет связи, показаны последние сохранённые данные.' : 'Не удалось загрузить матчи. Проверьте интернет (сервис счёта может не открываться без VPN).';
+    if (!matches.length) { try { const c = JSON.parse(localStorage.getItem(M_CACHE)); if (c && Array.isArray(c.m)) { matches = c.m; mUpdated = c.t || 0; mAlt = !!c.alt; } } catch (e) {} }
+    const why2 = [...new Set(why)].slice(0, 3).join('; ');
+    mErr = (matches.length ? 'Нет связи, показаны последние сохранённые данные.' : 'Не удалось загрузить матчи.') + (why2 ? ' Причина: ' + why2 + '.' : '') + ' Если без VPN не открывается, сервис счёта заблокирован у вашего оператора.';
   }
   renderMatches();
 }
@@ -611,12 +647,13 @@ function mCard(m) {
 }
 function renderMatches() {
   const box = $('#mwrap'); if (!box) return;
-  const sig = JSON.stringify([matches, mErr]); if (sig === mSig && !mActive) return; mSig = sig;
+  const sig = JSON.stringify([matches, mErr, mAlt]); if (sig === mSig && !mActive) return; mSig = sig;
   const now = Date.now(), live = matches.filter(m => m.state === 'in'), up = matches.filter(m => m.state === 'pre').sort((a, b) => a.date - b.date), done = matches.filter(m => m.state === 'post').sort((a, b) => b.date - a.date);
   box.replaceChildren();
   const head = el('div', 'mhead'), ti = el('div'), h2 = el('h2', '', 'Лига чемпионов'); ti.append(h2, el('small', '', mUpdated ? 'Обновлено в ' + new Date(mUpdated).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'Загрузка…'));
   const ref = el('button', 'mref', '↻'); ref.setAttribute('aria-label', 'Обновить'); ref.addEventListener('click', loadMatches); head.append(ti, ref); box.append(head);
   if (mErr) box.append(el('div', 'mmsg bad', mErr));
+  if (mAlt && !mErr) box.append(el('div', 'mmsg', 'Основной сервис недоступен. Показан резервный источник: расписание и результаты, без живого счёта и авторов голов.'));
   const nx = up.find(m => m.date > now);
   if (nx && !live.length) box.append(el('div', 'mnext', 'Следующий матч: ' + nx.h.name + ' — ' + nx.a.name + ' через ' + mLeft(nx.date - now)));
   if (live.length) { box.append(el('div', 'msec', 'Идут сейчас')); live.forEach(m => box.append(mCard(m))); }
