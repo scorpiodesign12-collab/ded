@@ -30,35 +30,6 @@ header{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(var(--safe-to
 .tab{position:relative;z-index:1;min-height:44px;font-size:16px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);transition:color .3s;border-radius:999px}
 .tab[aria-selected=true]{color:var(--text)}
 .ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / var(--cols,1));transform:translateX(calc(var(--pos,0) * 100%));border-radius:999px;background:var(--blue);transition:transform .35s cubic-bezier(.4,0,.2,1),background .35s}
-/* Матчи */
-#matchesView{position:fixed;inset:0;z-index:20;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg);padding:calc(var(--safe-top) + 84px) 14px calc(var(--safe-bottom) + 32px)}
-#matchesView[hidden]{display:none}
-.mwrap{max-width:560px;margin:0 auto}
-.mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 4px 6px}
-.mhead h2{margin:0;font-size:22px;font-weight:800}
-.mhead small{display:block;margin-top:2px;font-size:12px;font-weight:500;color:var(--muted)}
-.mref{min-width:44px;min-height:44px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--text);font-size:20px}
-.mnext{margin:10px 4px 0;padding:12px 14px;border-radius:14px;background:rgba(37,99,235,.14);border:1px solid rgba(37,99,235,.4);font-size:14px;font-weight:600}
-.msec{margin:20px 4px 8px;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.mcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:10px;cursor:pointer}
-.mcard.live{border-color:rgba(239,51,64,.6);box-shadow:0 0 0 1px rgba(239,51,64,.15)}
-.mrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
-.mteam{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-weight:700;font-size:14px;min-width:0}
-.mteam img{width:44px;height:44px;object-fit:contain}
-.mteam span{overflow-wrap:anywhere}
-.mscore{min-width:84px;text-align:center;font-size:32px;font-weight:900;letter-spacing:.02em}
-.mscore.pre{font-size:22px}
-.mstat{margin-top:10px;text-align:center;font-size:13px;font-weight:700;color:var(--muted)}
-.mstat.live{color:#ff6872}
-.mdot{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:#ff3b47;animation:mpulse 1.2s infinite}
-@keyframes mpulse{50%{opacity:.25}}
-.mev{display:none;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px}
-.mcard.open .mev{display:block}
-.mev .r{display:grid;grid-template-columns:1fr 52px 1fr;gap:6px;padding:4px 0;align-items:start}
-.mev .l{text-align:right}.mev .m{text-align:center;color:var(--muted);font-weight:700}
-.mev .none{text-align:center;color:var(--muted);padding:4px 0}
-.mmsg{margin:14px 4px;padding:12px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:14px;line-height:1.4}
-.mmsg.bad{color:#ff8a92;border-color:rgba(239,51,64,.4)}
 /* Скрытая зона: 7 быстрых нажатий */
 #secret{position:fixed;top:0;right:0;width:56px;height:64px;z-index:40;background:transparent}
 
@@ -219,10 +190,9 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 </div>
 
 <header>
-  <div class="tabs" id="tabs" data-tab="feed" role="tablist" aria-label="Разделы" style="--cols:2">
+  <div class="tabs" id="tabs" data-tab="feed" role="tablist" aria-label="Разделы" style="--cols:1">
     <span class="ind" aria-hidden="true"></span>
     <button class="tab" role="tab" id="tab-feed" aria-selected="true" data-tab="feed">Видео</button>
-    <button class="tab" role="tab" id="tab-matches" aria-selected="false" data-tab="matches">Матчи</button>
     <button class="tab" role="tab" id="tab-admin" aria-selected="false" data-tab="admin" hidden>Админ</button>
   </div>
 </header>
@@ -262,8 +232,6 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
   </form>
 </div>
 
-<!-- Матчи Лиги чемпионов: живой счёт -->
-<section id="matchesView" hidden aria-label="Матчи Лиги чемпионов"><div class="mwrap" id="mwrap"></div></section>
 
 <!-- Панель администратора: отдельная вкладка, появляется после ввода ID -->
 <section id="adminView" hidden aria-label="Панель администратора">
@@ -342,7 +310,18 @@ function mirrorOf(u) { // запасной путь через jsDelivr, есл�
   if (typeof u !== 'string' || /^(https?:|blob:|data:)/i.test(u)) return null;
   const ri = repoInfo(); return ri ? 'https://cdn.jsdelivr.net/gh/' + ri.repo + '@' + ri.branch + '/' + u.replace(/^\.?\//, '') : null;
 }
-function srcList(v) { if (v.prev) return [v.prev]; const a = [absU(v.url)], m = mirrorOf(v.url); if (m) a.push(m); return a; }
+function rawOf(u) { // прямой адрес файла в GitHub: работает сразу после загрузки, не ждёт деплоя сайта
+  if (typeof u !== 'string' || /^(https?:|blob:|data:)/i.test(u)) return null;
+  const ri = repoInfo(); return ri ? 'https://raw.githubusercontent.com/' + ri.repo + '/' + ri.branch + '/' + u.replace(/^\.?\//, '') : null;
+}
+function srcList(v) {
+  if (v.prev) return [v.prev];
+  const a = [absU(v.url)], m = mirrorOf(v.url), r = rawOf(v.url), fresh = v.added && Date.now() - v.added < 72e5;
+  if (fresh && r) a.push(r); // ролик только что загружен: сайт мог ещё не обновиться
+  if (m) a.push(m);
+  if (!fresh && r) a.push(r);
+  return a;
+}
 
 /* ===== Утилиты ===== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -364,8 +343,17 @@ let videos = [];
 const HIDDEN_KEY = 'grandpa.hidden.v1'; let hidden = [];
 try { hidden = JSON.parse(localStorage.getItem(HIDDEN_KEY)) || []; } catch (e) {}
 const okItem = v => v && (typeof v.url === 'string' || Array.isArray(v.images));
-const PUB_CACHE = 'grandpa.pub.v1';
+const PUB_CACHE = 'grandpa.pub.v1', PEND_KEY = 'grandpa.pending.v1';
+function getPending() { try { const a = JSON.parse(localStorage.getItem(PEND_KEY)); return Array.isArray(a) ? a.filter(x => x && okItem(x) && x.added && Date.now() - x.added < 216e5) : []; } catch (e) { return []; } }
+function setPending(a) { try { localStorage.setItem(PEND_KEY, JSON.stringify(a)); } catch (e) {} }
 async function loadPublished() { // videos.json лежит рядом с index.html в репозитории: его видят все
+  if (typeof ghOn === 'function' && ghOn()) { // у админа список берём прямо из репозитория: свежий, без задержки деплоя
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch('https://api.github.com/repos/' + gh.repo + '/contents/videos.json?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now(), { cache: 'no-store', signal: ctl.signal, headers: { Authorization: 'Bearer ' + gh.token, Accept: 'application/vnd.github.raw+json' } }); clearTimeout(t);
+      if (r.ok) { const a = await r.json(); if (Array.isArray(a)) { const f = a.filter(okItem); try { localStorage.setItem(PUB_CACHE, JSON.stringify(f)); } catch (e) {} return f; } }
+    } catch (e) {}
+  }
   const urls = [absU('videos.json')], m = mirrorOf('videos.json'); if (m) urls.push(m);
   for (const u of urls) {
     try {
@@ -382,7 +370,8 @@ async function loadPublished() { // videos.json лежит рядом с index.h
 function loadVideos(pub) {
   let local = []; try { const a = JSON.parse(localStorage.getItem(STORE_KEY)); if (Array.isArray(a)) local = a.filter(okItem); } catch (e) {}
   const base = (pub || DEMO_VIDEOS).map(v => ({ ...v, pub: true })), ids = new Set(base.map(v => v.id));
-  return base.concat(local.filter(v => !ids.has(v.id) && !(pub && /^d\d$/.test(v.id)))).filter(v => !hidden.includes(v.id));
+  const pend = getPending().filter(v => !ids.has(v.id)).map(v => ({ ...v, pub: true })); pend.forEach(v => ids.add(v.id));
+  return base.concat(pend, local.filter(v => !ids.has(v.id) && !(pub && /^d\d$/.test(v.id)))).filter(v => !hidden.includes(v.id));
 }
 function saveVideos() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(videos.filter(v => !v.local && !v.pub).map(({ prev, prevImages, ...r }) => r))); } catch (e) { toast('Не удалось сохранить список в этом браузере.', true); }
@@ -529,146 +518,12 @@ function setTab(name) {
   if (name === 'admin' && !adminUnlocked) return;
   currentTab = name;
   const tabs = $('#tabs'); tabs.dataset.tab = name;
-  tabs.style.setProperty('--pos', ['feed', 'matches', 'admin'].indexOf(name));
+  tabs.style.setProperty('--pos', ['feed', 'admin'].indexOf(name));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
   $('#adminView').hidden = name !== 'admin';
-  $('#matchesView').hidden = name !== 'matches';
-  if (name === 'matches') mStart(); else mStop();
   if (name === 'admin') { if (!$('#dateInput').value) $('#dateInput').value = todayIso(); renderAdminList(); renderGh(); }
   if (name !== 'feed') { pauseAll(); if (tutOpen) hideTutorial(); } else { playActive(); maybeTutorial(); }
 }
-/* ===== Матчи Лиги чемпионов (открытые данные ESPN, ключ не нужен) ===== */
-const ESPN_HOSTS = ['https://site.api.espn.com', 'https://site.web.api.espn.com'], ESPN_PATH = '/apis/site/v2/sports/soccer/uefa.champions/scoreboard', M_CACHE = 'grandpa.matches.v1';
-const RU_TEAMS = { 'real madrid': 'Реал Мадрид', 'barcelona': 'Барселона', 'bayern munich': 'Бавария', 'bayern münchen': 'Бавария', 'paris saint-germain': 'ПСЖ', 'psg': 'ПСЖ', 'manchester city': 'Манчестер Сити', 'manchester united': 'Манчестер Юнайтед', 'liverpool': 'Ливерпуль', 'arsenal': 'Арсенал', 'chelsea': 'Челси', 'tottenham hotspur': 'Тоттенхэм', 'newcastle united': 'Ньюкасл', 'aston villa': 'Астон Вилла', 'inter milan': 'Интер', 'internazionale': 'Интер', 'ac milan': 'Милан', 'juventus': 'Ювентус', 'napoli': 'Наполи', 'atalanta': 'Аталанта', 'atlético madrid': 'Атлетико', 'atletico madrid': 'Атлетико', 'athletic club': 'Атлетик', 'villarreal': 'Вильярреал', 'borussia dortmund': 'Боруссия Дортмунд', 'bayer leverkusen': 'Байер', 'rb leipzig': 'РБ Лейпциг', 'eintracht frankfurt': 'Айнтрахт', 'benfica': 'Бенфика', 'sporting cp': 'Спортинг', 'porto': 'Порту', 'fc porto': 'Порту', 'psv eindhoven': 'ПСВ', 'psv': 'ПСВ', 'ajax': 'Аякс', 'feyenoord': 'Фейеноорд', 'club brugge': 'Брюгге', 'union saint-gilloise': 'Юнион СЖ', 'celtic': 'Селтик', 'rangers': 'Рейнджерс', 'galatasaray': 'Галатасарай', 'fenerbahçe': 'Фенербахче', 'olympique marseille': 'Марсель', 'marseille': 'Марсель', 'monaco': 'Монако', 'as monaco': 'Монако', 'lille': 'Лилль', 'shakhtar donetsk': 'Шахтёр', 'dinamo zagreb': 'Динамо Загреб', 'gnk dinamo zagreb': 'Динамо Загреб', 'red star belgrade': 'Црвена Звезда', 'slavia prague': 'Славия Прага', 'sk slavia praha': 'Славия Прага', 'copenhagen': 'Копенгаген', 'fc copenhagen': 'Копенгаген', 'bodø/glimt': 'Буде-Глимт', 'bodo/glimt': 'Буде-Глимт', 'qarabağ': 'Карабах', 'qarabag': 'Карабах', 'kairat almaty': 'Кайрат', 'pafos': 'Пафос', 'olympiacos': 'Олимпиакос', 'real sociedad': 'Реал Сосьедад', 'girona': 'Жирона', 'sevilla': 'Севилья', 'valencia': 'Валенсия', 'roma': 'Рома', 'as roma': 'Рома', 'lazio': 'Лацио', 'fiorentina': 'Фиорентина', 'bologna': 'Болонья', 'rb salzburg': 'Зальцбург', 'red bull salzburg': 'Зальцбург', 'young boys': 'Янг Бойз', 'sturm graz': 'Штурм', 'brest': 'Брест', 'stade brestois 29': 'Брест', 'sparta prague': 'Спарта Прага', 'sk slovan bratislava': 'Слован', 'slovan bratislava': 'Слован', 'bologna fc 1909': 'Болонья', 'stuttgart': 'Штутгарт', 'vfb stuttgart': 'Штутгарт', 'aston villa fc': 'Астон Вилла' };
-const ruTeam = (n, n2) => RU_TEAMS[String(n || '').toLowerCase()] || RU_TEAMS[String(n2 || '').toLowerCase()] || n || n2 || '?';
-let matches = [], mTimer = 0, mActive = false, mOpen = new Set(), mErr = '', mUpdated = 0, mSig = '', mLoading = false;
-const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '');
-function parseMatches(d) {
-  const out = [];
-  (d && d.events || []).forEach(ev => {
-    const c = (ev.competitions || [])[0]; if (!c) return;
-    const cs = c.competitors || [], hm = cs.find(x => x.homeAway === 'home') || cs[0], aw = cs.find(x => x.homeAway === 'away') || cs[1]; if (!hm || !aw) return;
-    const st = ev.status || c.status || {}, ty = st.type || {};
-    const team = x => { const t = x.team || {}; return { id: String(t.id || x.id || ''), name: ruTeam(t.displayName, t.shortDisplayName), logo: t.logo || (t.logos && t.logos[0] && t.logos[0].href) || '', score: x.score != null && x.score !== '' ? Number(x.score && x.score.displayValue != null ? x.score.displayValue : x.score) : null, pen: x.shootoutScore != null ? Number(x.shootoutScore) : null }; };
-    const H = team(hm), A = team(aw), evs = [];
-    (c.details || []).forEach(dt => {
-      const kind = dt.redCard ? 'red' : (dt.scoringPlay || /goal/i.test((dt.type || {}).text || '')) ? 'goal' : '';
-      if (!kind || dt.shootout) return;
-      const a = (dt.athletesInvolved || [])[0] || {}, side = String((dt.team || {}).id) === A.id ? 'a' : 'h';
-      evs.push({ kind, side, min: (dt.clock && dt.clock.displayValue) || '', sec: (dt.clock && dt.clock.value) || 0, who: a.displayName || a.shortName || '', pen: !!dt.penaltyKick, og: !!dt.ownGoal });
-    });
-    evs.sort((x, y) => x.sec - y.sec);
-    const name = String(ty.name || ''), state = ty.state === 'in' ? 'in' : ty.state === 'post' ? 'post' : 'pre';
-    out.push({ id: String(ev.id), date: new Date(ev.date).getTime() || 0, state, name, clock: String(st.displayClock || ''), detail: String(ty.shortDetail || ty.detail || ''), h: H, a: A, evs, venue: (c.venue && c.venue.fullName) || '' });
-  });
-  return out;
-}
-async function mFetch(url, ms) { // {data} или {why}: почему не получилось
-  try {
-    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 9000);
-    const r = await fetch(url, { cache: 'no-store', signal: ctl.signal }); clearTimeout(t);
-    if (!r.ok) return { why: 'ответ ' + r.status };
-    return { data: await r.json() };
-  } catch (e) { return { why: e && e.name === 'AbortError' ? 'нет ответа за 9 с' : 'нет соединения или адрес заблокирован' }; }
-}
-// Резервный источник (TheSportsDB): только расписание и результаты, без живого счёта и авторов голов
-const TSD = 'https://www.thesportsdb.com/api/v1/json/3/';
-async function loadMatchesAlt() {
-  const [n, p] = await Promise.all([mFetch(TSD + 'eventsnextleague.php?id=4480'), mFetch(TSD + 'eventspastleague.php?id=4480')]);
-  const list = [].concat((n.data && n.data.events) || [], (p.data && p.data.events) || []); if (!list.length) return null;
-  const now = Date.now(), seen = new Set(), out = [];
-  list.forEach(e => {
-    if (!e || seen.has(e.idEvent)) return; seen.add(e.idEvent);
-    const ts = Date.parse(e.strTimestamp ? e.strTimestamp + (/Z|[+-]\d\d:?\d\d$/.test(e.strTimestamp) ? '' : 'Z') : (e.dateEvent || '') + 'T' + (e.strTime || '00:00:00') + 'Z') || 0;
-    const hs = e.intHomeScore, as = e.intAwayScore, has = hs != null && hs !== '' && as != null && as !== '', st = String(e.strStatus || '');
-    const state = /^(1H|2H|HT|ET|BT|P|LIVE)\b|live/i.test(st) ? 'in' : /finished|^FT$|^AET$|^PEN$/i.test(st) || (has && ts < now - 3 * 36e5) ? 'post' : 'pre';
-    const T = (nm, lg, sc) => ({ id: nm, name: ruTeam(nm), logo: lg || '', score: has ? Number(sc) : null, pen: null });
-    out.push({ id: 't' + e.idEvent, date: ts, state, name: state === 'post' ? 'STATUS_FULL_TIME' : '', clock: '', detail: '', h: T(e.strHomeTeam, e.strHomeTeamBadge, hs), a: T(e.strAwayTeam, e.strAwayTeamBadge, as), evs: [], venue: e.strVenue || '' });
-  });
-  return out;
-}
-let mAlt = false;
-async function loadMatches() {
-  if (mLoading) return; mLoading = true;
-  const now = Date.now(), day = 864e5, rg = (a, b) => '?dates=' + ymd(new Date(now - a * day)) + '-' + ymd(new Date(now + b * day));
-  const variants = [rg(10, 30) + '&limit=300', rg(3, 10), ''], why = [];
-  let data = null;
-  for (const h of ESPN_HOSTS) {
-    let fails = 0;
-    for (const v of variants) {
-      const r = await mFetch(h + ESPN_PATH + v);
-      if (r.data && Array.isArray(r.data.events)) { data = r.data; break; }
-      why.push(h.replace('https://', '') + ': ' + (r.why || 'пустой ответ')); fails++;
-      if (r.why && /нет соединения|нет ответа/.test(r.why) && fails >= 1) break; // хост недоступен, другие варианты запроса не помогут
-    }
-    if (data) break;
-  }
-  let alt = null;
-  if (!data) alt = await loadMatchesAlt();
-  mLoading = false;
-  if (data || alt) { matches = data ? parseMatches(data) : alt; mAlt = !data; mErr = ''; mUpdated = Date.now(); try { localStorage.setItem(M_CACHE, JSON.stringify({ t: mUpdated, m: matches, alt: mAlt })); } catch (e) {} }
-  else {
-    if (!matches.length) { try { const c = JSON.parse(localStorage.getItem(M_CACHE)); if (c && Array.isArray(c.m)) { matches = c.m; mUpdated = c.t || 0; mAlt = !!c.alt; } } catch (e) {} }
-    const why2 = [...new Set(why)].slice(0, 3).join('; ');
-    mErr = (matches.length ? 'Нет связи, показаны последние сохранённые данные.' : 'Не удалось загрузить матчи.') + (why2 ? ' Причина: ' + why2 + '.' : '') + ' Если без VPN не открывается, сервис счёта заблокирован у вашего оператора.';
-  }
-  renderMatches();
-}
-function mWhen(ts) { return new Date(ts).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }); }
-function mLeft(ms) { const m = Math.max(0, Math.round(ms / 6e4)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60; return d ? d + ' д ' + h + ' ч' : h ? h + ' ч ' + mm + ' мин' : mm + ' мин'; }
-function mStatus(m) {
-  const n = m.name;
-  if (m.state === 'in') return /HALF/i.test(n) ? 'Перерыв' : (m.clock ? (/['’′]|\+/.test(m.clock) ? m.clock : m.clock + "'") : 'Идёт');
-  if (m.state === 'post') return /PEN|SHOOT/i.test(n) ? 'Завершён (пенальти)' : /AET|EXTRA/i.test(n) ? 'Завершён (доп. время)' : 'Завершён';
-  if (/POSTPON/i.test(n)) return 'Перенесён'; if (/CANCEL/i.test(n)) return 'Отменён'; if (/SUSPEND|ABANDON/i.test(n)) return 'Прерван'; if (/DELAY/i.test(n)) return 'Задерживается';
-  return '';
-}
-function mCard(m) {
-  const live = m.state === 'in', card = el('div', 'mcard' + (live ? ' live' : '') + (mOpen.has(m.id) ? ' open' : '')), row = el('div', 'mrow');
-  const side = t => { const d = el('div', 'mteam'); if (t.logo) { const im = document.createElement('img'); im.src = t.logo; im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; im.addEventListener('error', () => im.remove()); d.append(im); } d.append(el('span', '', t.name)); return d; };
-  const sc = el('div', 'mscore' + (m.state === 'pre' ? ' pre' : ''));
-  sc.textContent = m.state === 'pre' ? new Date(m.date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : (m.h.score == null ? 0 : m.h.score) + ' : ' + (m.a.score == null ? 0 : m.a.score);
-  row.append(side(m.h), sc, side(m.a)); card.append(row);
-  const stt = mStatus(m), pen = m.h.pen != null && m.a.pen != null && (m.h.pen || m.a.pen) ? ' · пен. ' + m.h.pen + ':' + m.a.pen : '';
-  const stat = el('div', 'mstat' + (live ? ' live' : ''));
-  if (live) stat.append(el('span', 'mdot'));
-  stat.append(document.createTextNode(m.state === 'pre' ? mWhen(m.date) + (stt ? ' · ' + stt : '') : m.state === 'post' ? mWhen(m.date) + ' · ' + stt + pen : stt));
-  card.append(stat);
-  const ev = el('div', 'mev');
-  if (m.state === 'pre') ev.append(el('div', 'none', m.venue ? 'Стадион: ' + m.venue : 'Матч ещё не начался'));
-  else if (!m.evs.length) ev.append(el('div', 'none', m.h.score || m.a.score ? 'Подробности голов пока недоступны' : 'Голов пока нет'));
-  else m.evs.forEach(e => {
-    const r = el('div', 'r'), txt = (e.kind === 'red' ? '🟥 ' : '⚽ ') + (e.who || (e.kind === 'red' ? 'Удаление' : 'Гол')) + (e.pen ? ' (пен.)' : '') + (e.og ? ' (автогол)' : '');
-    r.append(el('div', 'l', e.side === 'h' ? txt : ''), el('div', 'm', e.min), el('div', 'rr', e.side === 'a' ? txt : '')); ev.append(r);
-  });
-  card.append(ev);
-  card.addEventListener('click', () => { if (mOpen.has(m.id)) mOpen.delete(m.id); else mOpen.add(m.id); card.classList.toggle('open'); });
-  return card;
-}
-function renderMatches() {
-  const box = $('#mwrap'); if (!box) return;
-  const sig = JSON.stringify([matches, mErr, mAlt]); if (sig === mSig && !mActive) return; mSig = sig;
-  const now = Date.now(), live = matches.filter(m => m.state === 'in'), up = matches.filter(m => m.state === 'pre').sort((a, b) => a.date - b.date), done = matches.filter(m => m.state === 'post').sort((a, b) => b.date - a.date);
-  box.replaceChildren();
-  const head = el('div', 'mhead'), ti = el('div'), h2 = el('h2', '', 'Лига чемпионов'); ti.append(h2, el('small', '', mUpdated ? 'Обновлено в ' + new Date(mUpdated).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'Загрузка…'));
-  const ref = el('button', 'mref', '↻'); ref.setAttribute('aria-label', 'Обновить'); ref.addEventListener('click', loadMatches); head.append(ti, ref); box.append(head);
-  if (mErr) box.append(el('div', 'mmsg bad', mErr));
-  if (mAlt && !mErr) box.append(el('div', 'mmsg', 'Основной сервис недоступен. Показан резервный источник: расписание и результаты, без живого счёта и авторов голов.'));
-  const nx = up.find(m => m.date > now);
-  if (nx && !live.length) box.append(el('div', 'mnext', 'Следующий матч: ' + nx.h.name + ' — ' + nx.a.name + ' через ' + mLeft(nx.date - now)));
-  if (live.length) { box.append(el('div', 'msec', 'Идут сейчас')); live.forEach(m => box.append(mCard(m))); }
-  if (up.length) { box.append(el('div', 'msec', 'Ближайшие матчи')); up.slice(0, 12).forEach(m => box.append(mCard(m))); }
-  if (done.length) { box.append(el('div', 'msec', 'Завершённые')); done.slice(0, 12).forEach(m => box.append(mCard(m))); }
-  if (!matches.length && !mErr) box.append(el('div', 'mmsg', mLoading ? 'Загружаем матчи…' : 'Матчей в ближайшее время нет.'));
-}
-function mSchedule() {
-  clearTimeout(mTimer); if (!mActive) return;
-  const now = Date.now(), live = matches.some(m => m.state === 'in'), soon = matches.some(m => m.state === 'pre' && m.date - now < 15 * 6e4);
-  mTimer = setTimeout(async () => { if (document.hidden) { mSchedule(); return; } await loadMatches(); mSchedule(); }, live ? 20000 : soon ? 30000 : 120000);
-}
-function mStart() { mActive = true; mSig = ''; renderMatches(); loadMatches().then(mSchedule); }
-function mStop() { mActive = false; clearTimeout(mTimer); }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && mActive) loadMatches(); });
 function initTabs() { document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab))); }
 
 /* ===== Администратор ===== */
@@ -685,7 +540,7 @@ function openGate() { $('#gateInput').value = ''; $('#gateMsg').textContent = ''
 function pauseAll() { track.querySelectorAll('video').forEach(v => v.pause()); track.querySelectorAll('.ytframe').forEach(f => ytPost(f, 'pauseVideo')); }
 function closeModal() { gate.hidden = true; if (currentTab === 'feed') playActive(); }
 function revealAdminTab(show) {
-  adminUnlocked = show; $('#tab-admin').hidden = !show; $('#tabs').style.setProperty('--cols', show ? 3 : 2);
+  adminUnlocked = show; $('#tab-admin').hidden = !show; $('#tabs').style.setProperty('--cols', show ? 2 : 1);
 }
 // TODO(backend): вместо sessionStorage использовать серверную сессию/токен.
 function openAdmin() { revealAdminTab(true); try { sessionStorage.setItem(ADMIN_KEY, '1'); } catch (e) {} gate.hidden = true; setAdminMsg(''); setTab('admin'); }
@@ -725,7 +580,7 @@ async function removeVideo(id) {
   const wasPub = !!v.pub;
   revokeLocal(v); // освобождаем объектные URL
   if (v.pub) { hidden.push(id); try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden)); } catch (e) {} }
-  videos = videos.filter(x => x.id !== id); saveVideos();
+  videos = videos.filter(x => x.id !== id); saveVideos(); setPending(getPending().filter(x => x.id !== id));
   if (index >= videos.length) index = Math.max(videos.length - 1, 0);
   renderFeed(); renderAdminList();
   if (ghOn()) { if (await syncGh('Удалено.')) for (const f of files) await ghDeleteFile(f); }
@@ -833,7 +688,7 @@ async function addByUrl() {
           if (d.file.size > MAX_VIDEO) throw new Error('Видео больше 90 МБ');
           row.p.textContent = 'Готовим…'; const fsFile = await faststart(d.file);
           const path = await ghUpload('videos', fsFile, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; });
-          videos.push({ id, url: path, prev: d.url, name: d.name, date });
+          videos.push({ id, url: path, prev: d.url, name: d.name, date, added: Date.now() });
         } else videos.push({ id, url: d.url, name: d.name, date, local: true });
         row.r.className = 'up done'; row.p.textContent = 'Готово ✓'; ok++;
       } catch (e) { row.r.className = 'up err'; row.p.textContent = e.message; failMsg = e.message; left.push(d); }
@@ -847,7 +702,7 @@ async function addByUrl() {
     if (yid) { videos.push({ id: 'y' + Date.now() + Math.random().toString(36).slice(2, 5), type: 'yt', yt: yid, url: 'https://youtu.be/' + yid, date }); ok++; continue; }
     const res = await resolveVideoUrl(raws[i]);
     if (!res) { bad.push(raws[i]); continue; }
-    const item = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date };
+    const item = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date, added: Date.now() };
     if (ghOn() && /^https?:/i.test(res) && !sameSite(res)) { // копируем ролик на свой сайт: так он открывается и с VPN, и без
       let f = null; const tag = 'Копируем ролик ' + (i + 1) + ' из ' + raws.length;
       try { setAdminMsg(tag + ': скачиваем…'); f = await faststart(await importRemote(res)); } catch (e) { f = null; kept++; }
@@ -907,20 +762,25 @@ async function ghUpload(dir, file, onProg, onWait) {
   });
   for (let a = 0; ; a++) { try { await send(); break; } catch (e) {
     if (isRate(e) && a < 8) { for (let t = Math.min(Math.max(e.ra || 30, 20), 90); t > 0; t--) { if (onWait) onWait('Ждём GitHub ' + t + ' с'); await sleep(1000); } continue; }
-    if (a >= 5 || !(e.status === 409 || /expected|conflict/i.test(e.message))) throw e; await sleep(1500 * (a + 1)); } }
+    if (a >= 5 || !(!e.status || e.status === 409 || e.status >= 500 || /expected|conflict/i.test(e.message))) throw e; await sleep(1500 * (a + 1)); } }
   return path;
 }
 async function ghPublishList() {
   const cur = await ghApi('videos.json', 'GET');
-  const list = videos.filter(v => !v.local).map(({ pub, local, prev, prevImages, ...r }) => r);
+  let remote = []; try { if (cur && cur.content) { const x = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); if (Array.isArray(x)) remote = x.filter(okItem); } } catch (e) {}
+  const list = videos.filter(v => !v.local).map(({ pub, local, prev, prevImages, ...r }) => r), have = new Set(list.map(v => v.id));
+  // то, что уже есть в репозитории (например, загружено раньше и ещё не доехало до этого экрана), не теряем; кроме удалённого вручную
+  const keep = remote.filter(r => !have.has(r.id) && !hidden.includes(r.id)); keep.forEach(r => { list.push(r); videos.push({ ...r, pub: true }); });
   await ghApi('videos.json', 'PUT', { message: 'Обновлён список', content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, 2)))), branch: gh.branch, ...(cur ? { sha: cur.sha } : {}) });
   videos.forEach(v => { if (!v.local) v.pub = true; }); hidden = [];
+  const fresh = list.filter(v => v.added && Date.now() - v.added < 216e5); if (fresh.length) setPending(fresh);
   try { localStorage.removeItem(HIDDEN_KEY); localStorage.removeItem(STORE_KEY); } catch (e) {}
+  if (keep.length) { sortVideos(); renderAdminList(); }
 }
 async function syncGh(okMsg) {
   if (!ghOn()) return false;
   setAdminMsg('Публикуем на GitHub…');
-  try { for (let a = 0; ; a++) { try { await ghPublishList(); break; } catch (e) { if (isRate(e) && a < 8) { setAdminMsg('GitHub просит подождать, повторяем…'); await sleep(Math.min(Math.max(e.ra || 30, 20), 90) * 1000); continue; } if (a >= 4 || (e.status !== 409 && !/expected/i.test(e.message))) throw e; await sleep(1500 * (a + 1)); } } setAdminMsg(okMsg + ' У всех появится через 1–2 минуты.', 'ok'); return true; }
+  try { for (let a = 0; ; a++) { try { await ghPublishList(); break; } catch (e) { if (isRate(e) && a < 8) { setAdminMsg('GitHub просит подождать, повторяем…'); await sleep(Math.min(Math.max(e.ra || 30, 20), 90) * 1000); continue; } if (a >= 5 || !(!e.status || e.status === 409 || e.status === 422 || e.status >= 500 || /expected|sha|conflict/i.test(e.message))) throw e; await sleep(1500 * (a + 1)); } } setAdminMsg(okMsg + ' У всех появится через 1–2 минуты.', 'ok'); return true; }
   catch (e) { setAdminMsg('Не удалось опубликовать: ' + e.message, 'bad'); return false; }
 }
 function renderGh() {
