@@ -30,6 +30,35 @@ header{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(var(--safe-to
 .tab{position:relative;z-index:1;min-height:44px;font-size:16px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);transition:color .3s;border-radius:999px}
 .tab[aria-selected=true]{color:var(--text)}
 .ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / var(--cols,1));transform:translateX(calc(var(--pos,0) * 100%));border-radius:999px;background:var(--blue);transition:transform .35s cubic-bezier(.4,0,.2,1),background .35s}
+/* Матчи */
+#matchesView{position:fixed;inset:0;z-index:20;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg);padding:calc(var(--safe-top) + 84px) 14px calc(var(--safe-bottom) + 32px)}
+#matchesView[hidden]{display:none}
+.mwrap{max-width:560px;margin:0 auto}
+.mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 4px 6px}
+.mhead h2{margin:0;font-size:22px;font-weight:800}
+.mhead small{display:block;margin-top:2px;font-size:12px;font-weight:500;color:var(--muted)}
+.mref{min-width:44px;min-height:44px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--text);font-size:20px}
+.mnext{margin:10px 4px 0;padding:12px 14px;border-radius:14px;background:rgba(37,99,235,.14);border:1px solid rgba(37,99,235,.4);font-size:14px;font-weight:600}
+.msec{margin:20px 4px 8px;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:10px;cursor:pointer}
+.mcard.live{border-color:rgba(239,51,64,.6);box-shadow:0 0 0 1px rgba(239,51,64,.15)}
+.mrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.mteam{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-weight:700;font-size:14px;min-width:0}
+.mteam img{width:44px;height:44px;object-fit:contain}
+.mteam span{overflow-wrap:anywhere}
+.mscore{min-width:84px;text-align:center;font-size:32px;font-weight:900;letter-spacing:.02em}
+.mscore.pre{font-size:22px}
+.mstat{margin-top:10px;text-align:center;font-size:13px;font-weight:700;color:var(--muted)}
+.mstat.live{color:#ff6872}
+.mdot{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:#ff3b47;animation:mpulse 1.2s infinite}
+@keyframes mpulse{50%{opacity:.25}}
+.mev{display:none;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px}
+.mcard.open .mev{display:block}
+.mev .r{display:grid;grid-template-columns:1fr 52px 1fr;gap:6px;padding:4px 0;align-items:start}
+.mev .l{text-align:right}.mev .m{text-align:center;color:var(--muted);font-weight:700}
+.mev .none{text-align:center;color:var(--muted);padding:4px 0}
+.mmsg{margin:14px 4px;padding:12px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:14px;line-height:1.4}
+.mmsg.bad{color:#ff8a92;border-color:rgba(239,51,64,.4)}
 /* Скрытая зона: 7 быстрых нажатий */
 #secret{position:fixed;top:0;right:0;width:56px;height:64px;z-index:40;background:transparent}
 
@@ -190,9 +219,10 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 </div>
 
 <header>
-  <div class="tabs" id="tabs" data-tab="feed" role="tablist" aria-label="Разделы">
+  <div class="tabs" id="tabs" data-tab="feed" role="tablist" aria-label="Разделы" style="--cols:2">
     <span class="ind" aria-hidden="true"></span>
     <button class="tab" role="tab" id="tab-feed" aria-selected="true" data-tab="feed">Видео</button>
+    <button class="tab" role="tab" id="tab-matches" aria-selected="false" data-tab="matches">Матчи</button>
     <button class="tab" role="tab" id="tab-admin" aria-selected="false" data-tab="admin" hidden>Админ</button>
   </div>
 </header>
@@ -231,6 +261,9 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     <button class="btn" type="submit">Войти</button>
   </form>
 </div>
+
+<!-- Матчи Лиги чемпионов: живой счёт -->
+<section id="matchesView" hidden aria-label="Матчи Лиги чемпионов"><div class="mwrap" id="mwrap"></div></section>
 
 <!-- Панель администратора: отдельная вкладка, появляется после ввода ID -->
 <section id="adminView" hidden aria-label="Панель администратора">
@@ -496,12 +529,109 @@ function setTab(name) {
   if (name === 'admin' && !adminUnlocked) return;
   currentTab = name;
   const tabs = $('#tabs'); tabs.dataset.tab = name;
-  tabs.style.setProperty('--pos', ['feed', 'admin'].indexOf(name));
+  tabs.style.setProperty('--pos', ['feed', 'matches', 'admin'].indexOf(name));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
   $('#adminView').hidden = name !== 'admin';
+  $('#matchesView').hidden = name !== 'matches';
+  if (name === 'matches') mStart(); else mStop();
   if (name === 'admin') { if (!$('#dateInput').value) $('#dateInput').value = todayIso(); renderAdminList(); renderGh(); }
   if (name !== 'feed') { pauseAll(); if (tutOpen) hideTutorial(); } else { playActive(); maybeTutorial(); }
 }
+/* ===== Матчи Лиги чемпионов (открытые данные ESPN, ключ не нужен) ===== */
+const ESPN_HOSTS = ['https://site.api.espn.com', 'https://site.web.api.espn.com'], ESPN_PATH = '/apis/site/v2/sports/soccer/uefa.champions/scoreboard', M_CACHE = 'grandpa.matches.v1';
+const RU_TEAMS = { 'real madrid': 'Реал Мадрид', 'barcelona': 'Барселона', 'bayern munich': 'Бавария', 'bayern münchen': 'Бавария', 'paris saint-germain': 'ПСЖ', 'psg': 'ПСЖ', 'manchester city': 'Манчестер Сити', 'manchester united': 'Манчестер Юнайтед', 'liverpool': 'Ливерпуль', 'arsenal': 'Арсенал', 'chelsea': 'Челси', 'tottenham hotspur': 'Тоттенхэм', 'newcastle united': 'Ньюкасл', 'aston villa': 'Астон Вилла', 'inter milan': 'Интер', 'internazionale': 'Интер', 'ac milan': 'Милан', 'juventus': 'Ювентус', 'napoli': 'Наполи', 'atalanta': 'Аталанта', 'atlético madrid': 'Атлетико', 'atletico madrid': 'Атлетико', 'athletic club': 'Атлетик', 'villarreal': 'Вильярреал', 'borussia dortmund': 'Боруссия Дортмунд', 'bayer leverkusen': 'Байер', 'rb leipzig': 'РБ Лейпциг', 'eintracht frankfurt': 'Айнтрахт', 'benfica': 'Бенфика', 'sporting cp': 'Спортинг', 'porto': 'Порту', 'fc porto': 'Порту', 'psv eindhoven': 'ПСВ', 'psv': 'ПСВ', 'ajax': 'Аякс', 'feyenoord': 'Фейеноорд', 'club brugge': 'Брюгге', 'union saint-gilloise': 'Юнион СЖ', 'celtic': 'Селтик', 'rangers': 'Рейнджерс', 'galatasaray': 'Галатасарай', 'fenerbahçe': 'Фенербахче', 'olympique marseille': 'Марсель', 'marseille': 'Марсель', 'monaco': 'Монако', 'as monaco': 'Монако', 'lille': 'Лилль', 'shakhtar donetsk': 'Шахтёр', 'dinamo zagreb': 'Динамо Загреб', 'gnk dinamo zagreb': 'Динамо Загреб', 'red star belgrade': 'Црвена Звезда', 'slavia prague': 'Славия Прага', 'sk slavia praha': 'Славия Прага', 'copenhagen': 'Копенгаген', 'fc copenhagen': 'Копенгаген', 'bodø/glimt': 'Буде-Глимт', 'bodo/glimt': 'Буде-Глимт', 'qarabağ': 'Карабах', 'qarabag': 'Карабах', 'kairat almaty': 'Кайрат', 'pafos': 'Пафос', 'olympiacos': 'Олимпиакос', 'real sociedad': 'Реал Сосьедад', 'girona': 'Жирона', 'sevilla': 'Севилья', 'valencia': 'Валенсия', 'roma': 'Рома', 'as roma': 'Рома', 'lazio': 'Лацио', 'fiorentina': 'Фиорентина', 'bologna': 'Болонья', 'rb salzburg': 'Зальцбург', 'red bull salzburg': 'Зальцбург', 'young boys': 'Янг Бойз', 'sturm graz': 'Штурм', 'brest': 'Брест', 'stade brestois 29': 'Брест', 'sparta prague': 'Спарта Прага', 'sk slovan bratislava': 'Слован', 'slovan bratislava': 'Слован', 'bologna fc 1909': 'Болонья', 'stuttgart': 'Штутгарт', 'vfb stuttgart': 'Штутгарт', 'aston villa fc': 'Астон Вилла' };
+const ruTeam = (n, n2) => RU_TEAMS[String(n || '').toLowerCase()] || RU_TEAMS[String(n2 || '').toLowerCase()] || n || n2 || '?';
+let matches = [], mTimer = 0, mActive = false, mOpen = new Set(), mErr = '', mUpdated = 0, mSig = '', mLoading = false;
+const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '');
+function parseMatches(d) {
+  const out = [];
+  (d && d.events || []).forEach(ev => {
+    const c = (ev.competitions || [])[0]; if (!c) return;
+    const cs = c.competitors || [], hm = cs.find(x => x.homeAway === 'home') || cs[0], aw = cs.find(x => x.homeAway === 'away') || cs[1]; if (!hm || !aw) return;
+    const st = ev.status || c.status || {}, ty = st.type || {};
+    const team = x => { const t = x.team || {}; return { id: String(t.id || x.id || ''), name: ruTeam(t.displayName, t.shortDisplayName), logo: t.logo || (t.logos && t.logos[0] && t.logos[0].href) || '', score: x.score != null && x.score !== '' ? Number(x.score && x.score.displayValue != null ? x.score.displayValue : x.score) : null, pen: x.shootoutScore != null ? Number(x.shootoutScore) : null }; };
+    const H = team(hm), A = team(aw), evs = [];
+    (c.details || []).forEach(dt => {
+      const kind = dt.redCard ? 'red' : (dt.scoringPlay || /goal/i.test((dt.type || {}).text || '')) ? 'goal' : '';
+      if (!kind || dt.shootout) return;
+      const a = (dt.athletesInvolved || [])[0] || {}, side = String((dt.team || {}).id) === A.id ? 'a' : 'h';
+      evs.push({ kind, side, min: (dt.clock && dt.clock.displayValue) || '', sec: (dt.clock && dt.clock.value) || 0, who: a.displayName || a.shortName || '', pen: !!dt.penaltyKick, og: !!dt.ownGoal });
+    });
+    evs.sort((x, y) => x.sec - y.sec);
+    const name = String(ty.name || ''), state = ty.state === 'in' ? 'in' : ty.state === 'post' ? 'post' : 'pre';
+    out.push({ id: String(ev.id), date: new Date(ev.date).getTime() || 0, state, name, clock: String(st.displayClock || ''), detail: String(ty.shortDetail || ty.detail || ''), h: H, a: A, evs, venue: (c.venue && c.venue.fullName) || '' });
+  });
+  return out;
+}
+async function loadMatches() {
+  if (mLoading) return; mLoading = true;
+  const now = Date.now(), q = '?dates=' + ymd(new Date(now - 10 * 864e5)) + '-' + ymd(new Date(now + 30 * 864e5)) + '&limit=300';
+  let data = null;
+  for (const h of ESPN_HOSTS) {
+    try { const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000); const r = await fetch(h + ESPN_PATH + q, { cache: 'no-store', signal: ctl.signal }); clearTimeout(t); if (!r.ok) continue; data = await r.json(); if (data && data.events) break; } catch (e) {}
+  }
+  mLoading = false;
+  if (data && data.events) { matches = parseMatches(data); mErr = ''; mUpdated = Date.now(); try { localStorage.setItem(M_CACHE, JSON.stringify({ t: mUpdated, m: matches })); } catch (e) {} }
+  else {
+    if (!matches.length) { try { const c = JSON.parse(localStorage.getItem(M_CACHE)); if (c && Array.isArray(c.m)) { matches = c.m; mUpdated = c.t || 0; } } catch (e) {} }
+    mErr = matches.length ? 'Нет связи, показаны последние сохранённые данные.' : 'Не удалось загрузить матчи. Проверьте интернет (сервис счёта может не открываться без VPN).';
+  }
+  renderMatches();
+}
+function mWhen(ts) { return new Date(ts).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }); }
+function mLeft(ms) { const m = Math.max(0, Math.round(ms / 6e4)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60; return d ? d + ' д ' + h + ' ч' : h ? h + ' ч ' + mm + ' мин' : mm + ' мин'; }
+function mStatus(m) {
+  const n = m.name;
+  if (m.state === 'in') return /HALF/i.test(n) ? 'Перерыв' : (m.clock ? (/['’′]|\+/.test(m.clock) ? m.clock : m.clock + "'") : 'Идёт');
+  if (m.state === 'post') return /PEN|SHOOT/i.test(n) ? 'Завершён (пенальти)' : /AET|EXTRA/i.test(n) ? 'Завершён (доп. время)' : 'Завершён';
+  if (/POSTPON/i.test(n)) return 'Перенесён'; if (/CANCEL/i.test(n)) return 'Отменён'; if (/SUSPEND|ABANDON/i.test(n)) return 'Прерван'; if (/DELAY/i.test(n)) return 'Задерживается';
+  return '';
+}
+function mCard(m) {
+  const live = m.state === 'in', card = el('div', 'mcard' + (live ? ' live' : '') + (mOpen.has(m.id) ? ' open' : '')), row = el('div', 'mrow');
+  const side = t => { const d = el('div', 'mteam'); if (t.logo) { const im = document.createElement('img'); im.src = t.logo; im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; im.addEventListener('error', () => im.remove()); d.append(im); } d.append(el('span', '', t.name)); return d; };
+  const sc = el('div', 'mscore' + (m.state === 'pre' ? ' pre' : ''));
+  sc.textContent = m.state === 'pre' ? new Date(m.date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : (m.h.score == null ? 0 : m.h.score) + ' : ' + (m.a.score == null ? 0 : m.a.score);
+  row.append(side(m.h), sc, side(m.a)); card.append(row);
+  const stt = mStatus(m), pen = m.h.pen != null && m.a.pen != null && (m.h.pen || m.a.pen) ? ' · пен. ' + m.h.pen + ':' + m.a.pen : '';
+  const stat = el('div', 'mstat' + (live ? ' live' : ''));
+  if (live) stat.append(el('span', 'mdot'));
+  stat.append(document.createTextNode(m.state === 'pre' ? mWhen(m.date) + (stt ? ' · ' + stt : '') : m.state === 'post' ? mWhen(m.date) + ' · ' + stt + pen : stt));
+  card.append(stat);
+  const ev = el('div', 'mev');
+  if (m.state === 'pre') ev.append(el('div', 'none', m.venue ? 'Стадион: ' + m.venue : 'Матч ещё не начался'));
+  else if (!m.evs.length) ev.append(el('div', 'none', m.h.score || m.a.score ? 'Подробности голов пока недоступны' : 'Голов пока нет'));
+  else m.evs.forEach(e => {
+    const r = el('div', 'r'), txt = (e.kind === 'red' ? '🟥 ' : '⚽ ') + (e.who || (e.kind === 'red' ? 'Удаление' : 'Гол')) + (e.pen ? ' (пен.)' : '') + (e.og ? ' (автогол)' : '');
+    r.append(el('div', 'l', e.side === 'h' ? txt : ''), el('div', 'm', e.min), el('div', 'rr', e.side === 'a' ? txt : '')); ev.append(r);
+  });
+  card.append(ev);
+  card.addEventListener('click', () => { if (mOpen.has(m.id)) mOpen.delete(m.id); else mOpen.add(m.id); card.classList.toggle('open'); });
+  return card;
+}
+function renderMatches() {
+  const box = $('#mwrap'); if (!box) return;
+  const sig = JSON.stringify([matches, mErr]); if (sig === mSig && !mActive) return; mSig = sig;
+  const now = Date.now(), live = matches.filter(m => m.state === 'in'), up = matches.filter(m => m.state === 'pre').sort((a, b) => a.date - b.date), done = matches.filter(m => m.state === 'post').sort((a, b) => b.date - a.date);
+  box.replaceChildren();
+  const head = el('div', 'mhead'), ti = el('div'), h2 = el('h2', '', 'Лига чемпионов'); ti.append(h2, el('small', '', mUpdated ? 'Обновлено в ' + new Date(mUpdated).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'Загрузка…'));
+  const ref = el('button', 'mref', '↻'); ref.setAttribute('aria-label', 'Обновить'); ref.addEventListener('click', loadMatches); head.append(ti, ref); box.append(head);
+  if (mErr) box.append(el('div', 'mmsg bad', mErr));
+  const nx = up.find(m => m.date > now);
+  if (nx && !live.length) box.append(el('div', 'mnext', 'Следующий матч: ' + nx.h.name + ' — ' + nx.a.name + ' через ' + mLeft(nx.date - now)));
+  if (live.length) { box.append(el('div', 'msec', 'Идут сейчас')); live.forEach(m => box.append(mCard(m))); }
+  if (up.length) { box.append(el('div', 'msec', 'Ближайшие матчи')); up.slice(0, 12).forEach(m => box.append(mCard(m))); }
+  if (done.length) { box.append(el('div', 'msec', 'Завершённые')); done.slice(0, 12).forEach(m => box.append(mCard(m))); }
+  if (!matches.length && !mErr) box.append(el('div', 'mmsg', mLoading ? 'Загружаем матчи…' : 'Матчей в ближайшее время нет.'));
+}
+function mSchedule() {
+  clearTimeout(mTimer); if (!mActive) return;
+  const now = Date.now(), live = matches.some(m => m.state === 'in'), soon = matches.some(m => m.state === 'pre' && m.date - now < 15 * 6e4);
+  mTimer = setTimeout(async () => { if (document.hidden) { mSchedule(); return; } await loadMatches(); mSchedule(); }, live ? 20000 : soon ? 30000 : 120000);
+}
+function mStart() { mActive = true; mSig = ''; renderMatches(); loadMatches().then(mSchedule); }
+function mStop() { mActive = false; clearTimeout(mTimer); }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && mActive) loadMatches(); });
 function initTabs() { document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab))); }
 
 /* ===== Администратор ===== */
@@ -518,7 +648,7 @@ function openGate() { $('#gateInput').value = ''; $('#gateMsg').textContent = ''
 function pauseAll() { track.querySelectorAll('video').forEach(v => v.pause()); track.querySelectorAll('.ytframe').forEach(f => ytPost(f, 'pauseVideo')); }
 function closeModal() { gate.hidden = true; if (currentTab === 'feed') playActive(); }
 function revealAdminTab(show) {
-  adminUnlocked = show; $('#tab-admin').hidden = !show; $('#tabs').style.setProperty('--cols', show ? 2 : 1);
+  adminUnlocked = show; $('#tab-admin').hidden = !show; $('#tabs').style.setProperty('--cols', show ? 3 : 2);
 }
 // TODO(backend): вместо sessionStorage использовать серверную сессию/токен.
 function openAdmin() { revealAdminTab(true); try { sessionStorage.setItem(ADMIN_KEY, '1'); } catch (e) {} gate.hidden = true; setAdminMsg(''); setTab('admin'); }
