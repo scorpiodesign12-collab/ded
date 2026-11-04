@@ -26,8 +26,8 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke
 
 /* Верхняя панель */
 header{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(var(--safe-top) + 12px) 56px 28px;display:flex;justify-content:center;background:linear-gradient(rgba(8,11,18,.85),transparent);pointer-events:none}
-.tabs{position:relative;display:grid;grid-template-columns:repeat(var(--cols,1),1fr);width:min(calc(var(--cols,1) * 140px),100%);padding:4px;border-radius:999px;background:rgba(17,24,39,.9);border:1px solid var(--line);pointer-events:auto}
-.tab{position:relative;z-index:1;min-height:44px;font-size:16px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);transition:color .3s;border-radius:999px}
+.tabs{position:relative;display:grid;grid-template-columns:repeat(var(--cols,1),1fr);width:min(calc(var(--cols,1) * 190px),100%);padding:4px;border-radius:999px;background:rgba(17,24,39,.9);border:1px solid var(--line);pointer-events:auto}
+.tab{position:relative;z-index:1;min-height:44px;font-size:15px;white-space:nowrap;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);transition:color .3s;border-radius:999px}
 .tab[aria-selected=true]{color:var(--text)}
 .ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / var(--cols,1));transform:translateX(calc(var(--pos,0) * 100%));border-radius:999px;background:var(--blue);transition:transform .35s cubic-bezier(.4,0,.2,1),background .35s}
 /* Скрытая зона: 7 быстрых нажатий */
@@ -43,6 +43,8 @@ html,body{overscroll-behavior:none}
 .slide video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
 .date{position:absolute;left:12px;bottom:calc(var(--safe-bottom) + 30px);padding:6px 10px;border-radius:8px;background:rgba(8,11,18,.6);font-size:15px;font-weight:600}
 .date{max-width:calc(100% - 84px)}
+/* Дата внизу слева больше не показывается */
+.date{display:none!important}
 .date small{display:block;margin-top:3px;font-size:13px;font-weight:500;line-height:1.3;color:#ffd0d4}
 .date.glow{animation:dglow 1.5s ease-in-out 4}
 @keyframes dglow{0%,100%{box-shadow:0 0 0 rgba(239,51,64,0);background:rgba(8,11,18,.6)}50%{box-shadow:0 0 18px 4px rgba(239,51,64,.75);background:rgba(60,12,18,.85)}}
@@ -154,6 +156,21 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 @keyframes swipeY{0%{transform:translateY(55px);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:translateY(-55px);opacity:0}}
 @keyframes swipeX{0%,100%{transform:translateX(-65px)}50%{transform:translateX(65px)}}
 
+/* Экраны выбора и скачивания */
+#choice,#dl{position:fixed;inset:0;z-index:80;background:#05070c;display:flex;align-items:center;justify-content:center;padding:calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px);overflow-y:auto}
+.cbox{width:min(480px,100%);display:grid;gap:18px;text-align:center}
+.cbox h1{font-size:clamp(26px,7vw,34px);line-height:1.25;font-weight:800;text-transform:uppercase}
+.cbox p{font-size:clamp(18px,5vw,22px);line-height:1.4;color:#d4d4d8}
+.cbox p.alert{color:#fff;font-weight:700;text-transform:uppercase;padding:14px;border-radius:14px;background:rgba(239,51,64,.18);border:1px solid rgba(239,51,64,.6)}
+.big{min-height:92px;width:100%;border-radius:20px;padding:12px 16px;background:var(--blue);color:#fff;font-size:clamp(22px,6.5vw,28px);font-weight:800;letter-spacing:.03em;line-height:1.2;text-transform:uppercase}
+.big.green{background:#16a34a}.big.grey{background:var(--surface2);border:2px solid var(--line)}
+.big:active{transform:scale(.98)}
+.cbox .link{min-height:60px;padding:8px;font-size:18px;font-weight:700;color:#93c5fd;text-decoration:underline}
+.count{font-size:clamp(56px,18vw,84px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.dbar{height:18px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.dbar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--blue),#60a5fa);transition:width .25s}
+#dlMsg{min-height:1.4em}
+
 /* Уведомления */
 #toasts{position:fixed;left:0;right:0;top:calc(var(--safe-top) + 80px);z-index:90;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 14px}
 .toast{max-width:420px;padding:12px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--blue);font-size:16px;animation:in .3s}
@@ -217,6 +234,29 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 <div id="tut" hidden aria-hidden="true">
   <div class="hand"><svg class="i"><use href="#i-hand"/></svg></div>
   <p id="tutText"></p>
+</div>
+
+<!-- Выбор: скачать для просмотра без интернета -->
+<div id="choice" hidden>
+  <div class="cbox">
+    <h1 id="cTitle">Скачать видео, чтобы смотреть без интернета?</h1>
+    <button class="big green" type="button" id="cA"></button>
+    <button class="big grey" type="button" id="cB"></button>
+    <button class="link" type="button" id="cC" hidden></button>
+  </div>
+</div>
+
+<!-- Скачивание -->
+<div id="dl" hidden>
+  <div class="cbox">
+    <h1 id="dlTitle"></h1>
+    <p class="alert" id="dlSub"></p>
+    <div class="count" id="dlCount">0/0</div>
+    <div class="dbar"><i id="dlBar"></i></div>
+    <p id="dlMsg" role="status" aria-live="polite"></p>
+    <button class="big green" type="button" id="dlWatch" hidden>Смотреть</button>
+    <button class="big" type="button" id="dlRetry" hidden>Повторить</button>
+  </div>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -536,7 +576,7 @@ function initSecretTap() {
     if (taps.length >= SECRET_TAPS) { taps = []; openGate(); }
   });
 }
-function openGate() { $('#gateInput').value = ''; $('#gateMsg').textContent = ''; gate.hidden = false; $('#gateInput').focus(); pauseAll(); }
+function openGate() { if (offlineMode) return; $('#gateInput').value = ''; $('#gateMsg').textContent = ''; gate.hidden = false; $('#gateInput').focus(); pauseAll(); }
 function pauseAll() { track.querySelectorAll('video').forEach(v => v.pause()); track.querySelectorAll('.ytframe').forEach(f => ytPost(f, 'pauseVideo')); }
 function closeModal() { gate.hidden = true; if (currentTab === 'feed') playActive(); }
 function revealAdminTab(show) {
@@ -1076,12 +1116,181 @@ function countNewVideos() {
   try { localStorage.setItem(SEEN_KEY, JSON.stringify(videos.map(v => v.id))); } catch (e) {}
   return fresh;
 }
+/* ===== Офлайн-режим =====
+   Видео хранятся внутри самого сайта (IndexedDB, закрытая память приложения). В галерею и в «Загрузки» ничего не попадает. */
+let offlineMode = false, listP = null, dlRun = false, wake = null, hasOff = false, offKeys = [];
+let _odb = null;
+function odb() { return _odb || (_odb = new Promise((ok, no) => { try { const r = indexedDB.open('grandpa-offline', 1); r.onupgradeneeded = () => { r.result.createObjectStore('files'); r.result.createObjectStore('meta'); }; r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); r.onblocked = () => no(new Error('blocked')); } catch (e) { no(e); } })); }
+function oreq(store, mode, fn) { return odb().then(d => new Promise((ok, no) => { const t = d.transaction(store, mode); let r; try { r = fn(t.objectStore(store)); } catch (e) { return no(e); } t.oncomplete = () => ok(r && r.result); t.onabort = () => no(t.error || new Error('abort')); })); }
+const oGet = (s, k) => oreq(s, 'readonly', o => o.get(k));
+const oPut = (s, k, v) => oreq(s, 'readwrite', o => o.put(v, k));
+const oDel = (s, k) => oreq(s, 'readwrite', o => o.delete(k));
+const oKeys = s => oreq(s, 'readonly', o => o.getAllKeys());
+
+function mimeOf(url, photo) {
+  const e = ((/\.([a-z0-9]{2,5})(?:[?#]|$)/i.exec(url) || [])[1] || '').toLowerCase();
+  if (photo) return e === 'png' ? 'image/png' : e === 'webp' ? 'image/webp' : e === 'gif' ? 'image/gif' : 'image/jpeg';
+  return e === 'webm' ? 'video/webm' : e === 'mov' ? 'video/quicktime' : 'video/mp4';
+}
+function dlTasks(list) { // что именно нужно сохранить: ролики и фото (YouTube без интернета не работает)
+  const t = [];
+  list.forEach(v => {
+    if (v.type === 'yt' || v.local) return;
+    if (v.type === 'photo') {
+      (v.images || []).forEach((u, i) => {
+        if (typeof u !== 'string' || /^(blob:|data:)/i.test(u)) return;
+        const urls = [absU(u), mirrorOf(u), rawOf(u)].filter(Boolean);
+        t.push({ key: v.id + '#' + i, urls: [...new Set(urls)], min: 200, mime: mimeOf(u, true) });
+      });
+    } else if (typeof v.url === 'string' && !/^(blob:|data:)/i.test(v.url)) {
+      t.push({ key: v.id, urls: [...new Set(srcList({ ...v, prev: null }))], min: 20000, mime: mimeOf(v.url, false) });
+    }
+  });
+  return t;
+}
+function snapshot(list) {
+  return list.filter(v => v.type !== 'yt' && !v.local).map(({ prev, prevImages, pub, local, ...r }) => r);
+}
+async function fetchBlob(url, min, mime, onProg) {
+  const r = await fetch(url, { cache: 'no-store', credentials: 'omit' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const ct = r.headers.get('content-type') || '';
+  if (/text\/html/i.test(ct)) throw new Error('Это не файл');
+  const total = +r.headers.get('content-length') || 0;
+  let blob;
+  if (r.body && r.body.getReader) {
+    const rd = r.body.getReader(), ch = []; let got = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; ch.push(value); got += value.length; if (onProg && total) onProg(Math.min(1, got / total)); }
+    blob = new Blob(ch, { type: mime });
+  } else blob = new Blob([await r.blob()], { type: mime });
+  if (blob.size < min) throw new Error('Файл слишком маленький');
+  return blob;
+}
+async function lockScreen() { // экран не гаснет, пока идёт загрузка
+  try { if (navigator.wakeLock && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e) {}
+}
+function unlockScreen() { try { wake && wake.release(); } catch (e) {} wake = null; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && dlRun) lockScreen(); });
+function busy(on) { $('#loader').classList.toggle('done', !on); }
+
+async function runDownload(refresh) {
+  if (dlRun) return; dlRun = true;
+  const T = $('#dlTitle'), S = $('#dlSub'), C = $('#dlCount'), B = $('#dlBar'), M = $('#dlMsg'), W = $('#dlWatch'), R = $('#dlRetry');
+  const paint = (d, t, f) => { C.textContent = d + '/' + t; B.style.width = (t ? Math.min(100, (d + (f || 0)) / t * 100) : 0) + '%'; };
+  $('#choice').hidden = true; $('#dl').hidden = false; W.hidden = true; R.hidden = true;
+  T.textContent = 'Не выходите из приложения!'; S.hidden = false; S.textContent = 'Оставьте телефон включённым, пока идёт загрузка';
+  M.textContent = 'Готовим список…'; paint(0, 0, 0);
+  lockScreen(); try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+  let msg = '', okAll = false, done = 0, total = 0;
+  try {
+    if (refresh) listP = loadPublished();
+    const pub = await listP;
+    if (!pub) throw new Error('Не удалось получить список видео. Проверьте интернет.');
+    const list = loadVideos(pub), tasks = dlTasks(list); total = tasks.length;
+    if (!total) throw new Error('Пока нечего скачивать.');
+    await oPut('meta', 'list', snapshot(list));
+    const have = new Set(await oKeys('files'));
+    done = tasks.filter(t => have.has(t.key)).length; paint(done, total, 0); M.textContent = '';
+    let cons = 0, quota = false;
+    for (const t of tasks) {
+      if (have.has(t.key)) continue;
+      let ok = false;
+      for (const u of t.urls) {
+        for (let a = 0; a < 2 && !ok; a++) {
+          while (!navigator.onLine) { M.textContent = 'Нет интернета. Ждём…'; await sleep(1500); }
+          M.textContent = '';
+          try { const blob = await fetchBlob(u, t.min, t.mime, f => paint(done, total, f)); await oPut('files', t.key, blob); ok = true; }
+          catch (e) { if (e && e.name === 'QuotaExceededError') { quota = true; break; } await sleep(700); }
+        }
+        if (ok || quota) break;
+      }
+      if (quota) break;
+      if (ok) { done++; cons = 0; have.add(t.key); paint(done, total, 0); } else if (++cons >= 3) break;
+    }
+    if (quota) throw new Error('Не хватает места на телефоне. Освободите место и нажмите «Повторить».');
+    if (done < total) throw new Error('Скачано ' + done + ' из ' + total + '. Проверьте интернет и нажмите «Повторить».');
+    const want = new Set(tasks.map(t => t.key)); // всё скачано: убираем то, чего на сайте уже нет
+    for (const k of await oKeys('files')) if (!want.has(k)) await oDel('files', k);
+    okAll = true;
+  } catch (e) { msg = (e && e.message) || 'Ошибка'; }
+  dlRun = false; unlockScreen();
+  try { offKeys = await oKeys('files'); hasOff = offKeys.length > 0; } catch (e) {}
+  if (okAll) {
+    T.textContent = 'Всё скачано!'; S.textContent = 'Теперь видео работают без интернета'; S.className = 'alert'; M.textContent = ''; paint(total, total, 0);
+    W.textContent = 'Смотреть'; W.hidden = false;
+  } else {
+    T.textContent = 'Не всё скачалось'; M.textContent = msg; R.hidden = false; S.hidden = true;
+    if (done > 0 || hasOff) { W.textContent = 'Смотреть скачанное'; W.hidden = false; }
+  }
+}
+async function startOffline() {
+  busy(true); const urls = [];
+  try {
+    const snap = (await oGet('meta', 'list')) || [], keys = new Set(await oKeys('files')), items = [];
+    for (const v of snap) {
+      if (v.type === 'photo') {
+        const ks = (v.images || []).map((_, i) => v.id + '#' + i);
+        if (!ks.length || !ks.every(k => keys.has(k))) continue;
+        const pu = []; for (const k of ks) { const b = await oGet('files', k); const u = URL.createObjectURL(b); urls.push(u); pu.push(u); }
+        items.push({ ...v, prevImages: pu });
+      } else {
+        if (!keys.has(v.id)) continue;
+        const u = URL.createObjectURL(await oGet('files', v.id)); urls.push(u); items.push({ ...v, prev: u });
+      }
+    }
+    if (!items.length) throw new Error('empty');
+    videos = shuffle(items); $('#choice').hidden = true; $('#dl').hidden = true; busy(false); enterFeed(true); return true;
+  } catch (e) {
+    urls.forEach(u => URL.revokeObjectURL(u)); busy(false);
+    toast('Скачанных видео не найдено.', true, 4000); return false;
+  }
+}
+async function startOnline() {
+  busy(true);
+  const pub0 = await listP;
+  videos = shuffle(loadVideos(pub0));
+  if (!pub0) setTimeout(() => toast('Не удалось загрузить список видео. Проверьте интернет.', true, 4000), 1500);
+  $('#choice').hidden = true; $('#dl').hidden = true; busy(false); enterFeed(false);
+}
+function enterFeed(off) {
+  offlineMode = off; hadGesture = true;
+  $('#tab-feed').textContent = off ? 'Офлайн-видео' : 'Видео';
+  if (off) revealAdminTab(false);
+  renderFeed(); appReady = true; playActive(); ytSync(); glowDate(); setTimeout(maybeTutorial, 900);
+  if (!off) { const n = countNewVideos(); toast(n > 0 ? `Добавлено новых: ${n}` : 'Все видео обновлены', false, 3500); }
+}
+function showChoice() {
+  const A = $('#cA'), B = $('#cB'), C = $('#cC');
+  $('#choice').hidden = false; C.hidden = true;
+  if (hasOff) {
+    $('#cTitle').hidden = true;
+    A.textContent = 'Смотреть скачанные видео'; B.textContent = 'Смотреть с интернетом видео'; B.className = 'big';
+  } else {
+    $('#cTitle').hidden = false; A.textContent = 'Скачать'; B.textContent = 'Нет'; B.className = 'big grey';
+  }
+  A.onclick = () => hasOff ? startOffline().then(ok => { if (!ok) showChoice(); }) : runDownload(false);
+  B.onclick = startOnline;
+  C.onclick = () => runDownload(true);
+  if (hasOff && navigator.onLine) listP.then(pub => { // если на сайте появились новые видео (или какие-то удалены), предлагаем обновить
+    if (!pub || $('#choice').hidden) return;
+    const tasks = dlTasks(loadVideos(pub)), ks = new Set(offKeys), want = new Set(tasks.map(t => t.key));
+    const fresh = tasks.filter(t => !ks.has(t.key)).length, stale = offKeys.filter(k => !want.has(k)).length;
+    if (fresh || stale) { C.textContent = 'Обновить скачанные видео' + (fresh ? ' (новых: ' + fresh + ')' : ''); C.hidden = false; }
+  }).catch(() => {});
+}
+$('#dlWatch').addEventListener('click', () => startOffline().then(ok => { if (!ok) { $('#dl').hidden = true; showChoice(); } }));
+$('#dlRetry').addEventListener('click', () => runDownload(true));
+
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { // чтобы сам сайт открывался без интернета
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+
 async function init() {
   await restoreGh();
-  const pub0 = await loadPublished();
-  videos = shuffle(loadVideos(pub0));
-  if (!pub0) setTimeout(() => toast('Не удалось загрузить список видео. Проверьте интернет.', true, 4000), 2500);
-  initTabs(); initFeedControls(); initAdmin(); syncSound(); renderFeed();
+  listP = navigator.onLine ? loadPublished() : Promise.resolve(null);
+  initTabs(); initFeedControls(); initAdmin(); syncSound();
+  let keys = null; try { keys = await oKeys('files'); } catch (e) {}
+  offKeys = keys || []; hasOff = offKeys.length > 0;
   setInterval(() => { // видео висит на загрузке больше 9 секунд: пробуем запасной адрес один раз
     const sl = track.children[index]; if (!sl) return;
     const vid = $('video', sl);
@@ -1089,14 +1298,13 @@ async function init() {
     sl._ls = sl._ls || Date.now();
     if (Date.now() - sl._ls > 9000 && !sl._swapped) { const list = srcList(videos[index]); sl._ls = 0; if (list.length > 1) { sl._swapped = true; sl._ci = 1; vid.src = list[1]; playActive(); } }
   }, 1500);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen()) playActive(); });
-  setTimeout(() => {
-    $('#loader').classList.add('done'); appReady = true; playActive(); ytSync(); glowDate(); setTimeout(maybeTutorial, 900);
-    const n = countNewVideos();
-    toast(n > 0 ? `Добавлено новых: ${n}` : 'Все видео обновлены', false, 3500);
-    setTimeout(() => $('#loader').remove(), 600);
-  }, reduceMotion() ? 200 : 1400);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen() && appReady) playActive(); });
+  await sleep(reduceMotion() ? 200 : 1200);
+  if (!navigator.onLine && hasOff && await startOffline()) return; // нет интернета и видео скачаны: сразу офлайн
+  if (keys === null) { await startOnline(); return; }                // память для офлайна недоступна: обычный режим
+  busy(false); showChoice();
 }
+
 init();
 </script>
 </body>
