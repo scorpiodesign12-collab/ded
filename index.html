@@ -1309,7 +1309,7 @@ $('#dlRetry').addEventListener('click', () => runDownload(true));
 $('#dlOnline').addEventListener('click', startOnline);
 
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { // чтобы сам сайт открывался без интернета
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  window.addEventListener('load', () => { if (navigator.onLine) navigator.serviceWorker.register('sw.js').catch(() => {}); }); // без интернета ничего не запрашиваем
 }
 
 async function init() {
