@@ -156,6 +156,10 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 @keyframes swipeY{0%{transform:translateY(55px);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:translateY(-55px);opacity:0}}
 @keyframes swipeX{0%,100%{transform:translateX(-65px)}50%{transform:translateX(65px)}}
 
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.seg .btn{min-height:52px;padding:0 10px;text-align:center;line-height:1.2}
+.seg .btn.on{background:var(--blue);border-color:var(--blue)}
+.item select{width:100%;min-height:40px;margin-top:6px;padding:0 10px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:15px;color-scheme:dark}
 /* Экраны выбора и скачивания */
 #choice,#dl{position:fixed;inset:0;z-index:80;background:#05070c;display:flex;align-items:center;justify-content:center;padding:calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px);overflow-y:auto}
 .cbox{width:min(480px,100%);display:grid;gap:18px;text-align:center}
@@ -256,6 +260,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     <p id="dlMsg" role="status" aria-live="polite"></p>
     <button class="big green" type="button" id="dlWatch" hidden>Смотреть</button>
     <button class="big" type="button" id="dlRetry" hidden>Повторить</button>
+    <button class="big grey" type="button" id="dlOnline" hidden>Смотреть с интернетом видео</button>
   </div>
 </div>
 
@@ -286,6 +291,11 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
       <div class="row"><h3>Публикаций: <span id="count">0</span></h3>
         <button type="button" class="btn ghost" id="logout"><svg class="i"><use href="#i-close"/></svg>Выйти</button></div>
       <label>Дата публикации (для нового видео или фото)<input type="date" id="dateInput"></label>
+      <div class="catbox"><span class="when">Куда публиковать новые видео и фото</span>
+        <div class="seg" id="catSeg">
+          <button type="button" class="btn ghost" data-cat="online">С интернетом</button>
+          <button type="button" class="btn ghost" data-cat="offline">Офлайн (можно скачать)</button>
+        </div></div>
     </div>
 
     <div class="panel">
@@ -380,6 +390,12 @@ function toast(text, bad = false, ms = 4000) {
 // TODO(backend): заменить на запрос к серверному API (GET /videos) и базе данных.
 // Локально хранятся только прямые URL и даты. Файлы с устройства (blob:) в localStorage не сохраняются.
 let videos = [];
+// videos — все публикации (для админки); feed — то, что сейчас показывается в ленте.
+// Раздел: 'online' (смотреть с интернетом) или 'offline' (можно скачать на телефон). Без отметки = 'online'.
+let feed = [], adminCat = 'offline';
+try { adminCat = localStorage.getItem('grandpa.cat.v1') === 'online' ? 'online' : 'offline'; } catch (e) {}
+const isOff = v => v && v.cat === 'offline';
+function setFeed() { feed = offlineMode ? videos.slice() : videos.filter(v => !isOff(v)); }
 const HIDDEN_KEY = 'grandpa.hidden.v1'; let hidden = [];
 try { hidden = JSON.parse(localStorage.getItem(HIDDEN_KEY)) || []; } catch (e) {}
 const okItem = v => v && (typeof v.url === 'string' || Array.isArray(v.images));
@@ -458,17 +474,18 @@ function buildSlide(v) {
   return slide;
 }
 function renderFeed() {
-  track.replaceChildren(...videos.map(buildSlide));
-  $('#empty').hidden = videos.length > 0;
-  $('#sound').hidden = videos.length === 0;
-  if (!videos.length) { $('#endCap').classList.remove('on'); stage.classList.remove('end'); }
-  index = Math.min(index, Math.max(videos.length - 1, 0));
+  setFeed();
+  track.replaceChildren(...feed.map(buildSlide));
+  $('#empty').hidden = feed.length > 0;
+  $('#sound').hidden = feed.length === 0;
+  if (!feed.length) { $('#endCap').classList.remove('on'); stage.classList.remove('end'); }
+  index = Math.min(index, Math.max(feed.length - 1, 0));
   applyPosition(true);
 }
 function ensureSrc(i) {
-  const slide = track.children[i]; if (!slide || !videos[i]) return;
+  const slide = track.children[i]; if (!slide || !feed[i]) return;
   const vid = $('video', slide); if (!vid) return;
-  const list = srcList(videos[i]), src = list[Math.min(slide._ci || 0, list.length - 1)]; vid.preload = i === index ? 'auto' : 'metadata'; if (vid.getAttribute('src') !== src) vid.src = src;
+  const list = srcList(feed[i]), src = list[Math.min(slide._ci || 0, list.length - 1)]; vid.preload = i === index ? 'auto' : 'metadata'; if (vid.getAttribute('src') !== src) vid.src = src;
 }
 function playActive() {
   if (currentTab !== 'feed' || userPaused) return;
@@ -479,12 +496,12 @@ function playActive() {
   if (p && p.catch) p.catch(() => { if (!vid.muted) { muted = true; pendingUnmute = true; vid.muted = true; syncSound(); vid.play().catch(() => {}); } });
 }
 function applyPosition(instant) {
-  if (!videos.length) return;
+  if (!feed.length) return;
   resetPause();
   track.style.transition = instant || reduceMotion() ? 'none' : '';
   track.style.transform = `translateY(${-index * 100}%)`;
-  $('#sound').hidden = videos[index].type === 'photo';
-  if (videos.length > 1 && index === videos.length - 1) showEnd(); else hideEnd();
+  $('#sound').hidden = feed[index].type === 'photo';
+  if (feed.length > 1 && index === feed.length - 1) showEnd(); else hideEnd();
   [...track.children].forEach((sl, i) => {
     const vid = $('video', sl);
     if (Math.abs(i - index) <= 1) ensureSrc(i);
@@ -502,8 +519,8 @@ function hideEnd() { clearTimeout(endTimer); $('#endCap').classList.remove('on')
 function glowDate() {}
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function goTo(i) {
-  if (currentTab === 'feed' && videos.length > 1 && index === videos.length - 1 && i === videos.length) { showEnd(); return; } // листаем дальше конца: подсказка снова
-  if (locked || currentTab !== 'feed' || i < 0 || i >= videos.length || i === index) return;
+  if (currentTab === 'feed' && feed.length > 1 && index === feed.length - 1 && i === feed.length) { showEnd(); return; } // листаем дальше конца: подсказка снова
+  if (locked || currentTab !== 'feed' || i < 0 || i >= feed.length || i === index) return;
   locked = true; index = i; applyPosition(false);
   setTimeout(() => { locked = false; }, reduceMotion() ? 50 : LOCK_MS);
 }
@@ -602,7 +619,12 @@ function renderAdminList() {
     const isPhoto = v.type === 'photo';
     const title = isPhoto ? `Фото (${v.images.length})` + (v.text ? ': ' + v.text : '') : (v.local ? v.name || 'Файл с устройства' : v.url);
     const head = el('strong'); head.append(el('span', 'tag', isPhoto ? 'Фото' : v.type === 'yt' ? 'YouTube' : 'Видео'), document.createTextNode(title));
-    info.append(head, el('small', '', v.local ? 'Только в этой сессии' : 'Дата: ' + formatDate(v.date)), dt);
+    const cs = document.createElement('select'); cs.setAttribute('aria-label', 'Раздел');
+    [['online', 'Раздел: с интернетом'], ['offline', 'Раздел: офлайн (скачивается)']].forEach(([k, t]) => { const o = document.createElement('option'); o.value = k; o.textContent = t; cs.appendChild(o); });
+    cs.value = isOff(v) ? 'offline' : 'online';
+    if (v.type === 'yt') { cs.value = 'online'; cs.disabled = true; }
+    cs.addEventListener('change', () => { v.cat = cs.value; saveVideos(); renderFeed(); renderAdminList(); setAdminMsg('Раздел изменён.', 'ok'); syncGh('Раздел изменён.'); });
+    info.append(head, el('small', '', v.local ? 'Только в этой сессии' : 'Дата: ' + formatDate(v.date)), dt, cs);
     const del = el('button', 'btn red'); del.type = 'button'; del.setAttribute('aria-label', 'Удалить ' + (isPhoto ? 'фото' : 'видео') + ' ' + formatDate(v.date)); const delTxt = document.createTextNode('Удалить'); del.append(icon('i-trash'), delTxt);
     del.addEventListener('click', () => { // первое нажатие просит подтвердить, второе удаляет
       if (!del._armed) { del._armed = true; delTxt.nodeValue = 'Точно удалить?'; clearTimeout(del._t); del._t = setTimeout(() => { del._armed = false; delTxt.nodeValue = 'Удалить'; }, 4000); return; }
@@ -621,7 +643,7 @@ async function removeVideo(id) {
   revokeLocal(v); // освобождаем объектные URL
   if (v.pub) { hidden.push(id); try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden)); } catch (e) {} }
   videos = videos.filter(x => x.id !== id); saveVideos(); setPending(getPending().filter(x => x.id !== id));
-  if (index >= videos.length) index = Math.max(videos.length - 1, 0);
+  if (index >= feed.length) index = Math.max(feed.length - 1, 0);
   renderFeed(); renderAdminList();
   if (ghOn()) { if (await syncGh('Удалено.')) for (const f of files) await ghDeleteFile(f); }
   else setAdminMsg(wasPub ? 'Удалено только в этом браузере. Подключите GitHub, чтобы удалить для всех.' : 'Удалено.', wasPub ? 'bad' : 'ok');
@@ -712,7 +734,7 @@ async function addByUrl() {
   const raws = $('#urlInput').value.split('\n').map(x => x.trim()).filter(Boolean);
   if (!raws.length && !videoDraft.length) return setAdminMsg('Выберите видео с устройства или вставьте ссылку.', 'bad');
   if (raws.length + videoDraft.length > 50) return setAdminMsg('За раз не больше 50 видео (сейчас выбрано ' + (raws.length + videoDraft.length) + '). Добавьте остальные следующим заходом.', 'bad');
-  const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [], failMsg = '', copied = 0, kept = 0;
+  const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [], failMsg = '', copied = 0, kept = 0, ytForced = false;
   // 1) Файлы с устройства
   if (videoDraft.length) {
     const box = $('#upList'); box.replaceChildren();
@@ -728,8 +750,8 @@ async function addByUrl() {
           if (d.file.size > MAX_VIDEO) throw new Error('Видео больше 90 МБ');
           row.p.textContent = 'Готовим…'; const fsFile = await faststart(d.file);
           const path = await ghUpload('videos', fsFile, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; });
-          videos.push({ id, url: path, prev: d.url, name: d.name, date, added: Date.now() });
-        } else videos.push({ id, url: d.url, name: d.name, date, local: true });
+          videos.push({ id, url: path, prev: d.url, name: d.name, date, cat: adminCat, added: Date.now() });
+        } else videos.push({ id, url: d.url, name: d.name, date, cat: adminCat, local: true });
         row.r.className = 'up done'; row.p.textContent = 'Готово ✓'; ok++;
       } catch (e) { row.r.className = 'up err'; row.p.textContent = e.message; failMsg = e.message; left.push(d); }
     }
@@ -739,10 +761,10 @@ async function addByUrl() {
   for (let i = 0; i < raws.length && !failMsg; i++) {
     setAdminMsg('Проверяем ссылки: ' + (i + 1) + ' из ' + raws.length);
     const yid = ytId(raws[i]);
-    if (yid) { videos.push({ id: 'y' + Date.now() + Math.random().toString(36).slice(2, 5), type: 'yt', yt: yid, url: 'https://youtu.be/' + yid, date }); ok++; continue; }
+    if (yid) { videos.push({ id: 'y' + Date.now() + Math.random().toString(36).slice(2, 5), type: 'yt', yt: yid, url: 'https://youtu.be/' + yid, date, cat: 'online' }); ok++; ytForced = adminCat === 'offline'; continue; }
     const res = await resolveVideoUrl(raws[i]);
     if (!res) { bad.push(raws[i]); continue; }
-    const item = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date, added: Date.now() };
+    const item = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date, cat: adminCat, added: Date.now() };
     if (ghOn() && /^https?:/i.test(res) && !sameSite(res)) { // копируем ролик на свой сайт: так он открывается и с VPN, и без
       let f = null; const tag = 'Копируем ролик ' + (i + 1) + ' из ' + raws.length;
       try { setAdminMsg(tag + ': скачиваем…'); f = await faststart(await importRemote(res)); } catch (e) { f = null; kept++; }
@@ -760,6 +782,7 @@ async function addByUrl() {
   if (failMsg) { if (ok) await syncGh('Добавлено видео: ' + ok + '.'); return setAdminMsg('Не удалось загрузить: ' + failMsg, 'bad'); }
   if (!ok) return setAdminMsg(CANT_IMPORT, 'bad');
   if (bad.length) toast('Не удалось добавить ссылок: ' + bad.length + '. Они остались в поле.', true, 6000);
+  if (ytForced) toast('Ссылки на YouTube скачать нельзя: они добавлены в раздел «С интернетом».', true, 6000);
   const hasTemp = videos.some(v => v.local);
   await syncGh('Добавлено видео: ' + ok + '.');
   if (copied || kept) setAdminMsg('Добавлено видео: ' + ok + '. Скопировано на сайт: ' + copied + '.' + (kept ? ' Не удалось скопировать: ' + kept + ' (источник не разрешает). Они остались внешними ссылками и без VPN могут не открываться: скачайте такие ролики на телефон и загрузите файлом.' : ''), kept ? 'bad' : 'ok');
@@ -852,6 +875,9 @@ function initAdmin() {
   });
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
   $('#logout').addEventListener('click', logoutAdmin);
+  const paintCat = () => document.querySelectorAll('#catSeg button').forEach(b => b.classList.toggle('on', b.dataset.cat === adminCat));
+  document.querySelectorAll('#catSeg button').forEach(b => b.addEventListener('click', () => { adminCat = b.dataset.cat; try { localStorage.setItem('grandpa.cat.v1', adminCat); } catch (e) {} paintCat(); }));
+  paintCat();
   $('#pickPhotos').addEventListener('click', () => $('#photoInput').click());
   $('#photoInput').addEventListener('change', async e => {
     const files = [...e.target.files]; e.target.value = ''; let bad = 0;
@@ -989,7 +1015,7 @@ function buildPhotoSlide(v) {
   return slide;
 }
 function stepPhoto(dir, auto) {
-  const v = videos[index], slide = track.children[index];
+  const v = feed[index], slide = track.children[index];
   if (!v || v.type !== 'photo' || photoLock || currentTab !== 'feed') return;
   if (!auto) { slide._dir = dir; restartPhotoTimer(); }
   const next = Math.max(0, Math.min(v.images.length - 1, slide._pi + dir));
@@ -1002,7 +1028,7 @@ function stepPhoto(dir, auto) {
 let photoTimer = 0;
 function restartPhotoTimer() {
   clearInterval(photoTimer);
-  const v = videos[index]; if (!v || v.type !== 'photo' || !v.images || v.images.length < 2) return;
+  const v = feed[index]; if (!v || v.type !== 'photo' || !v.images || v.images.length < 2) return;
   photoTimer = setInterval(() => {
     const slide = track.children[index];
     if (!slide || !slide._strip || currentTab !== 'feed' || document.hidden || anyModalOpen()) return;
@@ -1060,9 +1086,9 @@ function hideTutorial() {
   const next = tutQueue.shift(); if (next) setTimeout(() => showTutorial(next), 600);
 }
 function maybeTutorial() {
-  if (!appReady || currentTab !== 'feed' || !videos.length) return;
-  if (videos.length > 1) showTutorial('video');
-  const v = videos[index]; if (v && v.type === 'photo' && v.images.length > 1) showTutorial('photo');
+  if (!appReady || currentTab !== 'feed' || !feed.length) return;
+  if (feed.length > 1) showTutorial('video');
+  const v = feed[index]; if (v && v.type === 'photo' && v.images.length > 1) showTutorial('photo');
 }
 let photoDraft = [];
 function renderDraft() { $('#draftRow').hidden = !photoDraft.length; $('#draftInfo').textContent = 'Выбрано с устройства: ' + photoDraft.length; }
@@ -1102,7 +1128,7 @@ async function addPhotoPost() {
     btn.disabled = false;
   }
   // TODO(backend): загрузка фото в объектное хранилище и запись публикации в БД.
-  videos.push({ id: 'p' + Date.now(), type: 'photo', images, prevImages, text: $('#photoText').value.trim().slice(0, 500), date, local: hasLocal });
+  videos.push({ id: 'p' + Date.now(), type: 'photo', images, prevImages, text: $('#photoText').value.trim().slice(0, 500), date, cat: adminCat, local: hasLocal });
   photoDraft = []; renderDraft(); sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList();
   $('#photoUrls').value = ''; $('#photoText').value = '';
   setAdminMsg(hasLocal ? 'Фото добавлены, но пропадут после перезагрузки страницы.' : 'Фото добавлены.', 'ok'); await syncGh('Фото опубликованы.');
@@ -1112,8 +1138,8 @@ async function addPhotoPost() {
 function countNewVideos() {
   // TODO(backend): для подсчёта новых видео между устройствами нужно серверное хранилище.
   let seen = []; try { seen = JSON.parse(localStorage.getItem(SEEN_KEY)) || []; } catch (e) {}
-  const fresh = videos.filter(v => !seen.includes(v.id)).length;
-  try { localStorage.setItem(SEEN_KEY, JSON.stringify(videos.map(v => v.id))); } catch (e) {}
+  const fresh = feed.filter(v => !seen.includes(v.id)).length;
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify(feed.map(v => v.id))); } catch (e) {}
   return fresh;
 }
 /* ===== Офлайн-режим =====
@@ -1175,9 +1201,9 @@ function busy(on) { $('#loader').classList.toggle('done', !on); }
 
 async function runDownload(refresh) {
   if (dlRun) return; dlRun = true;
-  const T = $('#dlTitle'), S = $('#dlSub'), C = $('#dlCount'), B = $('#dlBar'), M = $('#dlMsg'), W = $('#dlWatch'), R = $('#dlRetry');
+  const T = $('#dlTitle'), S = $('#dlSub'), C = $('#dlCount'), B = $('#dlBar'), M = $('#dlMsg'), W = $('#dlWatch'), R = $('#dlRetry'), O = $('#dlOnline');
   const paint = (d, t, f) => { C.textContent = d + '/' + t; B.style.width = (t ? Math.min(100, (d + (f || 0)) / t * 100) : 0) + '%'; };
-  $('#choice').hidden = true; $('#dl').hidden = false; W.hidden = true; R.hidden = true;
+  $('#choice').hidden = true; $('#dl').hidden = false; W.hidden = true; R.hidden = true; O.hidden = true;
   T.textContent = 'Не выходите из приложения!'; S.hidden = false; S.textContent = 'Оставьте телефон включённым, пока идёт загрузка';
   M.textContent = 'Готовим список…'; paint(0, 0, 0);
   lockScreen(); try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
@@ -1186,8 +1212,8 @@ async function runDownload(refresh) {
     if (refresh) listP = loadPublished();
     const pub = await listP;
     if (!pub) throw new Error('Не удалось получить список видео. Проверьте интернет.');
-    const list = loadVideos(pub), tasks = dlTasks(list); total = tasks.length;
-    if (!total) throw new Error('Пока нечего скачивать.');
+    const list = loadVideos(pub).filter(isOff), tasks = dlTasks(list); total = tasks.length;
+    if (!total) throw new Error('В разделе «Офлайн» пока нет видео. Нажмите «Смотреть с интернетом».');
     await oPut('meta', 'list', snapshot(list));
     const have = new Set(await oKeys('files'));
     done = tasks.filter(t => have.has(t.key)).length; paint(done, total, 0); M.textContent = '';
@@ -1219,7 +1245,7 @@ async function runDownload(refresh) {
     T.textContent = 'Всё скачано!'; S.textContent = 'Теперь видео работают без интернета'; S.className = 'alert'; M.textContent = ''; paint(total, total, 0);
     W.textContent = 'Смотреть'; W.hidden = false;
   } else {
-    T.textContent = 'Не всё скачалось'; M.textContent = msg; R.hidden = false; S.hidden = true;
+    T.textContent = total ? 'Не всё скачалось' : 'Нечего скачивать'; M.textContent = msg; R.hidden = false; O.hidden = false; S.hidden = true;
     if (done > 0 || hasOff) { W.textContent = 'Смотреть скачанное'; W.hidden = false; }
   }
 }
@@ -1273,13 +1299,14 @@ function showChoice() {
   C.onclick = () => runDownload(true);
   if (hasOff && navigator.onLine) listP.then(pub => { // если на сайте появились новые видео (или какие-то удалены), предлагаем обновить
     if (!pub || $('#choice').hidden) return;
-    const tasks = dlTasks(loadVideos(pub)), ks = new Set(offKeys), want = new Set(tasks.map(t => t.key));
+    const tasks = dlTasks(loadVideos(pub).filter(isOff)), ks = new Set(offKeys), want = new Set(tasks.map(t => t.key));
     const fresh = tasks.filter(t => !ks.has(t.key)).length, stale = offKeys.filter(k => !want.has(k)).length;
     if (fresh || stale) { C.textContent = 'Обновить скачанные видео' + (fresh ? ' (новых: ' + fresh + ')' : ''); C.hidden = false; }
   }).catch(() => {});
 }
 $('#dlWatch').addEventListener('click', () => startOffline().then(ok => { if (!ok) { $('#dl').hidden = true; showChoice(); } }));
 $('#dlRetry').addEventListener('click', () => runDownload(true));
+$('#dlOnline').addEventListener('click', startOnline);
 
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { // чтобы сам сайт открывался без интернета
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
@@ -1296,7 +1323,7 @@ async function init() {
     const vid = $('video', sl);
     if (!vid || !vid.getAttribute('src') || !sl.classList.contains('loading') || currentTab !== 'feed' || document.hidden || vid.readyState >= 3) { sl._ls = 0; return; }
     sl._ls = sl._ls || Date.now();
-    if (Date.now() - sl._ls > 9000 && !sl._swapped) { const list = srcList(videos[index]); sl._ls = 0; if (list.length > 1) { sl._swapped = true; sl._ci = 1; vid.src = list[1]; playActive(); } }
+    if (Date.now() - sl._ls > 9000 && !sl._swapped) { const list = srcList(feed[index]); sl._ls = 0; if (list.length > 1) { sl._swapped = true; sl._ci = 1; vid.src = list[1]; playActive(); } }
   }, 1500);
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen() && appReady) playActive(); });
   await sleep(reduceMotion() ? 200 : 1200);
