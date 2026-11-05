@@ -175,6 +175,59 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 .dbar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--blue),#60a5fa);transition:width .25s}
 #dlMsg{min-height:1.4em}
 
+/* Длинные видео */
+#long,#lp{position:fixed;inset:0;z-index:76;background:#05070c;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:calc(var(--safe-top) + 12px) 14px calc(var(--safe-bottom) + 24px);scrollbar-width:none}
+#long::-webkit-scrollbar,#lp::-webkit-scrollbar{display:none}
+#lp{z-index:77}
+body.lfs #lp{overflow:hidden}
+.lbar{display:flex;align-items:center;gap:12px;width:min(900px,100%);margin:0 auto 14px}
+.lbar h2{font-size:clamp(19px,5.2vw,26px);line-height:1.2;text-transform:uppercase;font-weight:800;min-width:0;overflow-wrap:anywhere}
+.lback{display:inline-flex;align-items:center;gap:8px;min-height:60px;padding:0 20px 0 14px;border-radius:16px;background:var(--surface2);border:2px solid var(--line);font-size:20px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;flex:none}
+.lback svg{width:28px;height:28px}
+.lback:active,.lbtn:active,.lcard:active,.ldl:active{transform:scale(.98)}
+.llist{display:grid;gap:12px;width:min(640px,100%);margin:0 auto}
+.lcard{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;text-align:left;min-height:100px;padding:14px;border-radius:18px;background:var(--surface);border:2px solid var(--line)}
+.lcard .pl{width:64px;height:64px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center}
+.lcard .pl svg{width:30px;height:30px}
+.lcard strong{display:block;font-size:20px;line-height:1.25;overflow-wrap:anywhere}
+.lcard small{display:block;margin-top:5px;font-size:15px;color:var(--muted)}
+.lcard small.ok{color:#7fd19b}
+.lcard:disabled{opacity:.45;cursor:not-allowed}
+.lempty{padding:30px 10px;text-align:center;font-size:19px;line-height:1.4;color:var(--muted)}
+.lpwrap{width:min(900px,100%);margin:0 auto;display:flex;flex-direction:column;background:#000;border-radius:16px;overflow:hidden}
+.lpvw{position:relative;width:100%;aspect-ratio:16/9;max-height:56dvh;background:#000}
+.lpvw video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.lpspin{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+.lpvw.loading .lpspin{display:flex}
+.lperr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;background:rgba(8,11,18,.88);font-size:18px}
+.lpctl{padding:10px 14px 14px;background:var(--surface)}
+.lpctl input[type=range]{width:100%;height:44px;accent-color:#60a5fa;background:transparent;margin:0}
+.lptime{display:flex;justify-content:space-between;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;margin:0 2px 10px}
+.lprow{display:flex;flex-wrap:wrap;gap:10px}
+.lbtn{flex:1 1 0;min-height:78px;padding:6px 8px;border-radius:18px;background:var(--surface2);border:2px solid var(--line);font-size:19px;font-weight:800;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1.1}
+.lbtn svg{width:30px;height:30px}
+.lbtn.main{flex:1.5 1 0;background:var(--blue);border-color:var(--blue)}
+.lbtn.fsb{flex:1 1 100%;min-height:62px;flex-direction:row;gap:10px;font-size:18px}
+.lpfsbar{display:none;position:absolute;top:0;left:0;right:0;z-index:2;padding:calc(var(--safe-top) + 10px) 14px 36px;background:linear-gradient(rgba(0,0,0,.75),transparent)}
+.lpwrap.fs{position:fixed;inset:0;z-index:95;width:100%;margin:0;border-radius:0;background:#000}
+.lpwrap.fs .lpvw{position:absolute;inset:0;aspect-ratio:auto;max-height:none}
+.lpwrap.fs .lpfsbar{display:flex}
+.lpwrap.fs .lpctl{position:absolute;left:0;right:0;bottom:0;z-index:2;background:linear-gradient(transparent,rgba(0,0,0,.9) 35%);padding:30px 14px calc(var(--safe-bottom) + 12px);transition:opacity .3s}
+.lpwrap.fs .lpfsbar{transition:opacity .3s}
+.lpwrap.fs .lbtn{background:rgba(26,34,52,.92)}
+.lpwrap.fs .lbtn.main{background:var(--blue)}
+.lpwrap.fs.hide .lpctl,.lpwrap.fs.hide .lpfsbar{opacity:0;pointer-events:none}
+.lpwrap.fs.hide{cursor:none}
+@media (orientation:landscape){.lpwrap.fs .lbtn.fsb{flex:1 1 0;flex-direction:column}.lpwrap.fs .lpctl{padding-top:16px}.lpwrap.fs .lbtn{min-height:66px}}
+.lpdown{width:min(900px,100%);margin:16px auto 0;display:grid;gap:10px;text-align:center}
+.ldl{position:relative;overflow:hidden;width:100%;min-height:88px;padding:12px 16px;border-radius:20px;background:var(--blue);border:2px solid #3b82f6;color:#fff;font-size:clamp(15px,4.4vw,19px);font-weight:800;line-height:1.25;text-transform:uppercase;letter-spacing:.02em}
+.ldl .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(37,99,235,.9);transition:width .25s}
+.ldl .tx{position:relative;display:block}
+.ldl.run{background:var(--surface2);border-color:#60a5fa}
+.ldl.done{background:#166534;border-color:#22c55e;cursor:default}
+.lnote{font-size:16px;line-height:1.4;color:var(--muted);min-height:1.4em}
+.big.long{background:#7c3aed}
+
 /* Уведомления */
 #toasts{position:fixed;left:0;right:0;top:calc(var(--safe-top) + 80px);z-index:90;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 14px}
 .toast{max-width:420px;padding:12px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--blue);font-size:16px;animation:in .3s}
@@ -203,6 +256,10 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></symbol>
   <symbol id="i-hand" viewBox="0 0 24 24"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
+  <symbol id="i-rew" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-min" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></symbol>
 </svg>
 
 <div id="loader" role="status" aria-live="polite">
@@ -246,6 +303,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     <h1 id="cTitle">Скачать видео, чтобы смотреть без интернета?</h1>
     <button class="big green" type="button" id="cA"></button>
     <button class="big grey" type="button" id="cB"></button>
+    <button class="big long" type="button" id="cL">Длинные видео</button>
     <button class="link" type="button" id="cC" hidden></button>
   </div>
 </div>
@@ -261,6 +319,40 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     <button class="big green" type="button" id="dlWatch" hidden>Смотреть</button>
     <button class="big" type="button" id="dlRetry" hidden>Повторить</button>
     <button class="big grey" type="button" id="dlOnline" hidden>Смотреть с интернетом видео</button>
+  </div>
+</div>
+
+<!-- Длинные видео: список -->
+<div id="long" hidden>
+  <div class="lbar"><button class="lback" type="button" id="lBack"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg>Назад</button><h2>Длинные видео</h2></div>
+  <div class="llist" id="lList"></div>
+</div>
+
+<!-- Длинные видео: плеер -->
+<div id="lp" hidden>
+  <div class="lbar"><button class="lback" type="button" id="lpBack"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg>Назад</button><h2 id="lpTitle"></h2></div>
+  <div class="lpwrap" id="lpWrap">
+    <div class="lpvw loading" id="lpVw">
+      <video id="lpVid" playsinline webkit-playsinline preload="metadata"></video>
+      <div class="lpspin"><svg class="spin" viewBox="0 0 44 44" aria-hidden="true"><circle class="a" cx="22" cy="22" r="18"/><circle class="b" cx="22" cy="22" r="18"/></svg></div>
+      <div class="lperr" id="lpErr" hidden><p>Не удалось загрузить видео. Проверьте интернет.</p><button class="btn" type="button" id="lpRetry"><svg class="i" aria-hidden="true"><use href="#i-retry"/></svg>Повторить</button></div>
+    </div>
+    <div class="lpfsbar" id="lpFsBar"><button class="lback" type="button" id="lpFsBack"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg>Назад</button></div>
+    <div class="lpctl" id="lpCtl">
+      <input type="range" id="lpSeek" min="0" max="1000" step="1" value="0" aria-label="Перемотка">
+      <div class="lptime"><span id="lpCur">0:00</span><span id="lpDur">0:00</span></div>
+      <div class="lprow">
+        <button class="lbtn" type="button" id="lpBk" aria-label="Назад на 15 секунд"><svg class="i" aria-hidden="true"><use href="#i-rew"/></svg><span>−15 с</span></button>
+        <button class="lbtn main" type="button" id="lpPlay"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg><span>Пуск</span></button>
+        <button class="lbtn" type="button" id="lpFw" aria-label="Вперёд на 15 секунд"><svg class="i" aria-hidden="true"><use href="#i-retry"/></svg><span>+15 с</span></button>
+        <button class="lbtn fsb" type="button" id="lpFs"><svg class="i" aria-hidden="true"><use href="#i-full"/></svg><span>На весь экран</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="lpdown" id="lpDown">
+    <button class="ldl" type="button" id="lpDl"><i class="fill" id="lpDlFill"></i><span class="tx" id="lpDlTx">Скачать, чтобы смотреть без интернета</span></button>
+    <p class="lnote" id="lpNote" role="status"></p>
+    <button class="btn ghost" type="button" id="lpDel" hidden>Удалить скачанное видео</button>
   </div>
 </div>
 
@@ -295,7 +387,9 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
         <div class="seg" id="catSeg">
           <button type="button" class="btn ghost" data-cat="online">С интернетом</button>
           <button type="button" class="btn ghost" data-cat="offline">Офлайн (можно скачать)</button>
-        </div></div>
+          <button type="button" class="btn ghost" data-cat="long" style="grid-column:1/-1">Длинные видео (до 90 МБ, можно скачать)</button>
+        </div>
+        <label id="longTitleBox" hidden>Название длинного видео (необязательно)<input type="text" id="longTitle" maxlength="80" placeholder="Например: Концерт, 9 мая" autocomplete="off"></label></div>
     </div>
 
     <div class="panel">
@@ -305,7 +399,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
       <div class="row" id="vDraftRow" hidden><span id="vDraftInfo"></span><button class="btn ghost" type="button" id="clearVDraft">Очистить</button></div>
       <label>Или ссылки на видео (прямая ссылка на MP4/WebM либо на HTML-страницу с видео), по одной в строке<textarea id="urlInput" rows="3" placeholder="videos/clip1.mp4, https://…/video.mp4, ссылка на YouTube или https://…/page.html" inputmode="url" autocapitalize="off"></textarea></label>
       <button class="btn red" type="button" id="addUrl"><svg class="i"><use href="#i-plus"/></svg>Опубликовать видео</button>
-      <p class="warn">С устройства: до 90 МБ на файл (лимит GitHub). Без подключённого GitHub видео с устройства видно только до перезагрузки страницы.</p>
+      <p class="warn">С устройства: до 90 МБ на файл (лимит GitHub). Для раздела «Длинные видео» это тоже до 90 МБ. Без подключённого GitHub видео с устройства видно только до перезагрузки страницы.</p>
     </div>
 
     <div class="panel">
@@ -393,9 +487,10 @@ let videos = [];
 // videos — все публикации (для админки); feed — то, что сейчас показывается в ленте.
 // Раздел: 'online' (смотреть с интернетом) или 'offline' (можно скачать на телефон). Без отметки = 'online'.
 let feed = [], adminCat = 'offline';
-try { adminCat = localStorage.getItem('grandpa.cat.v1') === 'online' ? 'online' : 'offline'; } catch (e) {}
+try { const c0 = localStorage.getItem('grandpa.cat.v1'); adminCat = c0 === 'online' || c0 === 'long' ? c0 : 'offline'; } catch (e) {}
 const isOff = v => v && v.cat === 'offline';
-function setFeed() { feed = offlineMode ? videos.slice() : videos.filter(v => !isOff(v)); }
+const isLong = v => v && v.cat === 'long';
+function setFeed() { feed = offlineMode ? videos.slice() : videos.filter(v => !isOff(v) && !isLong(v)); }
 const HIDDEN_KEY = 'grandpa.hidden.v1'; let hidden = [];
 try { hidden = JSON.parse(localStorage.getItem(HIDDEN_KEY)) || []; } catch (e) {}
 const okItem = v => v && (typeof v.url === 'string' || Array.isArray(v.images));
@@ -617,11 +712,11 @@ function renderAdminList() {
     const dt = document.createElement('input'); dt.type = 'date'; dt.value = v.date || ''; dt.setAttribute('aria-label', 'Дата публикации');
     dt.addEventListener('change', () => { if (!dt.value) return; v.date = dt.value; sortVideos(); saveVideos(); renderFeed(); renderAdminList(); setAdminMsg('Дата обновлена.', 'ok'); syncGh('Дата обновлена.'); });
     const isPhoto = v.type === 'photo';
-    const title = isPhoto ? `Фото (${v.images.length})` + (v.text ? ': ' + v.text : '') : (v.local ? v.name || 'Файл с устройства' : v.url);
-    const head = el('strong'); head.append(el('span', 'tag', isPhoto ? 'Фото' : v.type === 'yt' ? 'YouTube' : 'Видео'), document.createTextNode(title));
+    const title = isPhoto ? `Фото (${v.images.length})` + (v.text ? ': ' + v.text : '') : (v.title || (v.local ? v.name || 'Файл с устройства' : v.url));
+    const head = el('strong'); head.append(el('span', 'tag', isPhoto ? 'Фото' : v.type === 'yt' ? 'YouTube' : isLong(v) ? 'Длинное' : 'Видео'), document.createTextNode(title));
     const cs = document.createElement('select'); cs.setAttribute('aria-label', 'Раздел');
-    [['online', 'Раздел: с интернетом'], ['offline', 'Раздел: офлайн (скачивается)']].forEach(([k, t]) => { const o = document.createElement('option'); o.value = k; o.textContent = t; cs.appendChild(o); });
-    cs.value = isOff(v) ? 'offline' : 'online';
+    [['online', 'Раздел: с интернетом'], ['offline', 'Раздел: офлайн (скачивается)']].concat(isPhoto || v.type === 'yt' ? [] : [['long', 'Раздел: длинные видео']]).forEach(([k, t]) => { const o = document.createElement('option'); o.value = k; o.textContent = t; cs.appendChild(o); });
+    cs.value = isOff(v) ? 'offline' : isLong(v) && !isPhoto ? 'long' : 'online';
     if (v.type === 'yt') { cs.value = 'online'; cs.disabled = true; }
     cs.addEventListener('change', () => { v.cat = cs.value; saveVideos(); renderFeed(); renderAdminList(); setAdminMsg('Раздел изменён.', 'ok'); syncGh('Раздел изменён.'); });
     info.append(head, el('small', '', v.local ? 'Только в этой сессии' : 'Дата: ' + formatDate(v.date)), dt, cs);
@@ -735,6 +830,8 @@ async function addByUrl() {
   if (!raws.length && !videoDraft.length) return setAdminMsg('Выберите видео с устройства или вставьте ссылку.', 'bad');
   if (raws.length + videoDraft.length > 50) return setAdminMsg('За раз не больше 50 видео (сейчас выбрано ' + (raws.length + videoDraft.length) + '). Добавьте остальные следующим заходом.', 'bad');
   const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [], failMsg = '', copied = 0, kept = 0, ytForced = false;
+  const tIn = $('#longTitle').value.trim().slice(0, 80), many = raws.length + videoDraft.length > 1;
+  const ttl = nm => { const t = adminCat !== 'long' ? '' : (!many && tIn ? tIn : String(nm || '').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80)); return t ? { title: t } : {}; };
   // 1) Файлы с устройства
   if (videoDraft.length) {
     const box = $('#upList'); box.replaceChildren();
@@ -750,8 +847,8 @@ async function addByUrl() {
           if (d.file.size > MAX_VIDEO) throw new Error('Видео больше 90 МБ');
           row.p.textContent = 'Готовим…'; const fsFile = await faststart(d.file);
           const path = await ghUpload('videos', fsFile, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; });
-          videos.push({ id, url: path, prev: d.url, name: d.name, date, cat: adminCat, added: Date.now() });
-        } else videos.push({ id, url: d.url, name: d.name, date, cat: adminCat, local: true });
+          videos.push({ id, url: path, prev: d.url, name: d.name, date, cat: adminCat, added: Date.now(), ...ttl(d.name) });
+        } else videos.push({ id, url: d.url, name: d.name, date, cat: adminCat, local: true, ...ttl(d.name) });
         row.r.className = 'up done'; row.p.textContent = 'Готово ✓'; ok++;
       } catch (e) { row.r.className = 'up err'; row.p.textContent = e.message; failMsg = e.message; left.push(d); }
     }
@@ -761,10 +858,10 @@ async function addByUrl() {
   for (let i = 0; i < raws.length && !failMsg; i++) {
     setAdminMsg('Проверяем ссылки: ' + (i + 1) + ' из ' + raws.length);
     const yid = ytId(raws[i]);
-    if (yid) { videos.push({ id: 'y' + Date.now() + Math.random().toString(36).slice(2, 5), type: 'yt', yt: yid, url: 'https://youtu.be/' + yid, date, cat: 'online' }); ok++; ytForced = adminCat === 'offline'; continue; }
+    if (yid) { videos.push({ id: 'y' + Date.now() + Math.random().toString(36).slice(2, 5), type: 'yt', yt: yid, url: 'https://youtu.be/' + yid, date, cat: 'online' }); ok++; ytForced = adminCat !== 'online'; continue; }
     const res = await resolveVideoUrl(raws[i]);
     if (!res) { bad.push(raws[i]); continue; }
-    const item = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date, cat: adminCat, added: Date.now() };
+    const item = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), url: res, date, cat: adminCat, added: Date.now(), ...ttl(many ? '' : tIn) };
     if (ghOn() && /^https?:/i.test(res) && !sameSite(res)) { // копируем ролик на свой сайт: так он открывается и с VPN, и без
       let f = null; const tag = 'Копируем ролик ' + (i + 1) + ' из ' + raws.length;
       try { setAdminMsg(tag + ': скачиваем…'); f = await faststart(await importRemote(res)); } catch (e) { f = null; kept++; }
@@ -778,7 +875,7 @@ async function addByUrl() {
   if (failMsg) bad.push(...raws);
   btn.disabled = false;
   if (ok) { sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList(); }
-  $('#urlInput').value = bad.join('\n');
+  $('#urlInput').value = bad.join('\n'); if (ok) $('#longTitle').value = '';
   if (failMsg) { if (ok) await syncGh('Добавлено видео: ' + ok + '.'); return setAdminMsg('Не удалось загрузить: ' + failMsg, 'bad'); }
   if (!ok) return setAdminMsg(CANT_IMPORT, 'bad');
   if (bad.length) toast('Не удалось добавить ссылок: ' + bad.length + '. Они остались в поле.', true, 6000);
@@ -875,7 +972,7 @@ function initAdmin() {
   });
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
   $('#logout').addEventListener('click', logoutAdmin);
-  const paintCat = () => document.querySelectorAll('#catSeg button').forEach(b => b.classList.toggle('on', b.dataset.cat === adminCat));
+  const paintCat = () => { document.querySelectorAll('#catSeg button').forEach(b => b.classList.toggle('on', b.dataset.cat === adminCat)); $('#longTitleBox').hidden = adminCat !== 'long'; };
   document.querySelectorAll('#catSeg button').forEach(b => b.addEventListener('click', () => { adminCat = b.dataset.cat; try { localStorage.setItem('grandpa.cat.v1', adminCat); } catch (e) {} paintCat(); }));
   paintCat();
   $('#pickPhotos').addEventListener('click', () => $('#photoInput').click());
@@ -1128,7 +1225,8 @@ async function addPhotoPost() {
     btn.disabled = false;
   }
   // TODO(backend): загрузка фото в объектное хранилище и запись публикации в БД.
-  videos.push({ id: 'p' + Date.now(), type: 'photo', images, prevImages, text: $('#photoText').value.trim().slice(0, 500), date, cat: adminCat, local: hasLocal });
+  videos.push({ id: 'p' + Date.now(), type: 'photo', images, prevImages, text: $('#photoText').value.trim().slice(0, 500), date, cat: adminCat === 'long' ? 'online' : adminCat, local: hasLocal });
+  if (adminCat === 'long') toast('Фото добавлены в раздел «С интернетом»: в длинные видео можно только видео.', false, 6000);
   photoDraft = []; renderDraft(); sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList();
   $('#photoUrls').value = ''; $('#photoText').value = '';
   setAdminMsg(hasLocal ? 'Фото добавлены, но пропадут после перезагрузки страницы.' : 'Фото добавлены.', 'ok'); await syncGh('Фото опубликованы.');
@@ -1287,13 +1385,16 @@ function enterFeed(off) {
 }
 function showChoice() {
   const A = $('#cA'), B = $('#cB'), C = $('#cC');
-  $('#choice').hidden = false; C.hidden = true;
+  const L = $('#cL'), off = !navigator.onLine;
+  $('#choice').hidden = false; C.hidden = true; A.hidden = false; B.hidden = false; L.hidden = false; L.onclick = openLong;
+  $('#cTitle').textContent = 'Скачать видео, чтобы смотреть без интернета?';
   if (hasOff) {
     $('#cTitle').hidden = true;
     A.textContent = 'Смотреть скачанные видео'; B.textContent = 'Смотреть с интернетом видео'; B.className = 'big';
   } else {
     $('#cTitle').hidden = false; A.textContent = 'Скачать'; B.textContent = 'Нет'; B.className = 'big grey';
   }
+  if (off) { B.hidden = true; if (!hasOff) { A.hidden = true; $('#cTitle').hidden = false; $('#cTitle').textContent = 'Нет интернета'; } } // без сети работает только то, что уже скачано
   A.onclick = () => hasOff ? startOffline().then(ok => { if (!ok) showChoice(); }) : runDownload(false);
   B.onclick = startOnline;
   C.onclick = () => runDownload(true);
@@ -1308,6 +1409,222 @@ $('#dlWatch').addEventListener('click', () => startOffline().then(ok => { if (!o
 $('#dlRetry').addEventListener('click', () => runDownload(true));
 $('#dlOnline').addEventListener('click', startOnline);
 
+/* ===== Длинные видео =====
+   Отдельный раздел: можно смотреть сразу (поток) или скачать в закрытую память приложения и смотреть без интернета.
+   Файлы лежат в своей базе 'grandpa-long', отдельно от коротких офлайн-видео. */
+function idbStore2(name, stores) {
+  let p = null;
+  const open = () => p || (p = new Promise((ok, no) => { try { const r = indexedDB.open(name, 1); r.onupgradeneeded = () => stores.forEach(s => r.result.createObjectStore(s)); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); r.onblocked = () => no(new Error('blocked')); } catch (e) { no(e); } }));
+  const req = (s, mode, fn) => open().then(d => new Promise((ok, no) => { const t = d.transaction(s, mode); let r; try { r = fn(t.objectStore(s)); } catch (e) { return no(e); } t.oncomplete = () => ok(r && r.result); t.onabort = () => no(t.error || new Error('abort')); }));
+  return { get: (s, k) => req(s, 'readonly', o => o.get(k)), put: (s, k, v) => req(s, 'readwrite', o => o.put(v, k)), del: (s, k) => req(s, 'readwrite', o => o.delete(k)), keys: s => req(s, 'readonly', o => o.getAllKeys()) };
+}
+const LDB = idbStore2('grandpa-long', ['files', 'meta']);
+const LSKIP = 15, LPOS_KEY = 'grandpa.lpos.v1';
+let hasLong = false, lItemsCache = [], lKeysSet = new Set(), lCur = null, lFromList = false, ldl = null;
+let lSrc = [], lCi = 0, lTries = 0, lBlobUrl = '', lResume = null, lFs = false, lFsAuto = false, lFsNative = false, lHideT = 0, lSeeking = false, lwake = null, lSavedAt = 0, lDelArm = 0;
+
+function fmtT(s) { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), c = s % 60, p = n => String(n).padStart(2, '0'); return h ? h + ':' + p(m) + ':' + p(c) : m + ':' + p(c); }
+function lTitleOf(v) {
+  if (v.title) return v.title;
+  const n = String(v.name || '').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
+  return n || 'Видео от ' + formatDate(v.date);
+}
+function lGetPos(id) { try { return (JSON.parse(localStorage.getItem(LPOS_KEY)) || {})[id] || 0; } catch (e) { return 0; } }
+function lSetPos(id, t) { try { const o = JSON.parse(localStorage.getItem(LPOS_KEY)) || {}; if (t > 0) o[id] = Math.floor(t); else delete o[id]; localStorage.setItem(LPOS_KEY, JSON.stringify(o)); } catch (e) {} }
+function lSavePos() { const v = $('#lpVid'); if (lCur && v.duration && v.currentTime > 0) lSetPos(lCur.id, v.currentTime); }
+async function lLock() { try { if (navigator.wakeLock && !lwake) { lwake = await navigator.wakeLock.request('screen'); lwake.addEventListener('release', () => { lwake = null; }); } } catch (e) {} }
+function lUnlock() { try { lwake && lwake.release(); } catch (e) {} lwake = null; }
+
+async function lGather() {
+  const pub = await listP; let keys = [];
+  try { keys = await LDB.keys('files'); } catch (e) {}
+  lKeysSet = new Set(keys); hasLong = keys.length > 0;
+  const items = loadVideos(pub).filter(isLong), seen = new Set(items.map(v => v.id));
+  for (const k of keys) { if (seen.has(k)) continue; try { const m = await LDB.get('meta', k); if (m) items.push({ ...m, _off: true }); } catch (e) {} } // скачано, но с сайта уже убрано
+  items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return items;
+}
+async function openLong() {
+  busy(true); let items = [];
+  try { items = await lGather(); } catch (e) {}
+  busy(false); lItemsCache = items; $('#choice').hidden = true;
+  if (items.length === 1) lOpenPlayer(items[0], false); else showLongList();
+}
+function showLongList() {
+  $('#lp').hidden = true; const box = $('#lList'); box.replaceChildren();
+  const items = lItemsCache.filter(v => !(v._off && !lKeysSet.has(v.id)));
+  if (!items.length) box.appendChild(el('p', 'lempty', 'Пока нет длинных видео. Новые появятся здесь.'));
+  items.forEach(v => {
+    const d = lKeysSet.has(v.id), can = d || navigator.onLine, b = el('button', 'lcard'); b.type = 'button'; b.disabled = !can;
+    const pl = el('span', 'pl'); pl.appendChild(icon('i-play'));
+    const t = el('div'); t.append(el('strong', '', lTitleOf(v)), el('small', d ? 'ok' : '', (d ? 'Скачано, без интернета · ' : can ? '' : 'Нужен интернет · ') + formatDate(v.date)));
+    b.append(pl, t); b.addEventListener('click', () => lOpenPlayer(v, true)); box.appendChild(b);
+  });
+  $('#long').hidden = false; $('#long').scrollTop = 0;
+}
+function lSetPlayUi(playing) {
+  const b = $('#lpPlay'); b.querySelector('use').setAttribute('href', playing ? '#i-pause' : '#i-play'); b.querySelector('span').textContent = playing ? 'Пауза' : 'Пуск';
+}
+function lPlay() { const p = $('#lpVid').play(); if (p && p.catch) p.catch(() => {}); }
+async function lOpenPlayer(v, fromList) {
+  lCur = v; lFromList = fromList; lTries = 0; lCi = 0; lResume = null; lSeeking = false;
+  const vid = $('#lpVid');
+  $('#long').hidden = true; $('#lp').hidden = false; $('#lp').scrollTop = 0;
+  $('#lpTitle').textContent = lTitleOf(v); $('#lpErr').hidden = true; $('#lpVw').classList.add('loading');
+  $('#lpSeek').value = 0; $('#lpCur').textContent = '0:00'; $('#lpDur').textContent = '0:00'; lSetPlayUi(false); lDelArm = 0; $('#lpDel').textContent = 'Удалить скачанное видео';
+  lPaintDl();
+  if (lBlobUrl) { URL.revokeObjectURL(lBlobUrl); lBlobUrl = ''; }
+  lSrc = [];
+  if (lKeysSet.has(v.id)) { try { const b = await LDB.get('files', v.id); if (b) { lBlobUrl = URL.createObjectURL(b); lSrc = [lBlobUrl]; } } catch (e) {} } // скачанная копия, если есть
+  if (lCur !== v) return;
+  if (!lSrc.length) lSrc = srcList({ ...v, prev: null });
+  vid.src = lSrc[0]; lPlay();
+  if (window.matchMedia('(orientation: landscape) and (max-height: 600px)').matches) lSetFs(true, true, false);
+}
+function lpClose() {
+  const vid = $('#lpVid'); lSavePos(); vid.pause(); vid.removeAttribute('src'); vid.load();
+  if (lBlobUrl) { URL.revokeObjectURL(lBlobUrl); lBlobUrl = ''; }
+  lSetFs(false); lUnlock(); $('#lp').hidden = true; lCur = null;
+  if (lFromList) showLongList(); else showChoice();
+}
+function lBumpHide() {
+  const w = $('#lpWrap'); w.classList.remove('hide'); clearTimeout(lHideT);
+  if (lFs && !$('#lpVid').paused) lHideT = setTimeout(() => w.classList.add('hide'), 3500);
+}
+function lSetFs(on, auto, native) {
+  if (on === lFs) return;
+  const w = $('#lpWrap'); lFs = on; lFsAuto = on && !!auto; w.classList.toggle('fs', on); w.classList.remove('hide');
+  document.body.classList.toggle('lfs', on);
+  const b = $('#lpFs'); b.querySelector('use').setAttribute('href', on ? '#i-min' : '#i-full'); b.querySelector('span').textContent = on ? 'Свернуть' : 'На весь экран';
+  if (on) {
+    if (native && w.requestFullscreen) { try { const r = w.requestFullscreen({ navigationUI: 'hide' }); if (r && r.then) r.then(() => { lFsNative = true; }).catch(() => {}); } catch (e) {} }
+    lBumpHide();
+  } else {
+    clearTimeout(lHideT);
+    if (document.fullscreenElement) { lFsNative = false; try { document.exitFullscreen().catch(() => {}); } catch (e) {} }
+  }
+}
+function lPaintDl() {
+  const v = lCur; if (!v) return;
+  const b = $('#lpDl'), tx = $('#lpDlTx'), fill = $('#lpDlFill'), note = $('#lpNote'), del = $('#lpDel');
+  if (v.local || /^(blob:|data:)/i.test(v.url || '')) { b.hidden = true; del.hidden = true; note.textContent = 'Это видео временное: скачать его нельзя.'; return; }
+  const done = lKeysSet.has(v.id), run = !!(ldl && ldl.id === v.id);
+  b.hidden = false; b.className = 'ldl' + (done ? ' done' : run ? ' run' : ''); b.disabled = done;
+  if (run) {
+    tx.textContent = ldl.arm ? 'Точно отменить? Нажмите ещё раз' : ldl.p >= 0 ? 'Скачиваем… ' + Math.round(ldl.p * 100) + '%' : 'Скачиваем… ' + ldl.mb + ' МБ';
+    fill.style.width = (ldl.p >= 0 ? ldl.p * 100 : 0) + '%'; note.textContent = 'Не выходите из приложения, пока идёт скачивание.';
+  } else if (done) { tx.textContent = 'Скачано ✓ Работает без интернета'; fill.style.width = '0'; note.textContent = ''; }
+  else { tx.textContent = 'Скачать, чтобы смотреть без интернета'; fill.style.width = '0'; note.textContent = ldl ? 'Сейчас скачивается другое видео.' : ''; }
+  del.hidden = !done;
+}
+async function lFetch(url, signal, onProg) {
+  const r = await fetch(url, { cache: 'no-store', credentials: 'omit', signal });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  if (/text\/html/i.test(r.headers.get('content-type') || '')) throw new Error('Это не файл');
+  const total = +r.headers.get('content-length') || 0, ch = []; let got = 0;
+  if (r.body && r.body.getReader) {
+    const rd = r.body.getReader();
+    for (;;) { const { done, value } = await rd.read(); if (done) break; ch.push(value); got += value.length; onProg(total ? Math.min(1, got / total) : -1, Math.round(got / 1048576)); }
+  } else { const b = await r.blob(); ch.push(b); got = b.size; }
+  const blob = new Blob(ch, { type: mimeOf(url, false) });
+  if (blob.size < 20000) throw new Error('Файл слишком маленький');
+  return blob;
+}
+async function lDownload(v) {
+  if (!navigator.onLine) { toast('Нет интернета.', true); return; }
+  const ctl = new AbortController(); ldl = { id: v.id, p: 0, mb: 0, ctl, arm: false }; lPaintDl(); lockScreen();
+  let blob = null, quota = false, last = 0;
+  const urls = [...new Set(srcList({ ...v, prev: null }))];
+  outer: for (const u of urls) {
+    for (let a = 0; a < 2; a++) {
+      try { blob = await lFetch(u, ctl.signal, (p, mb) => { if (!ldl) return; ldl.p = p; ldl.mb = mb; const n = Date.now(); if (n - last > 200) { last = n; lPaintDl(); } }); break outer; }
+      catch (e) { if (ctl.signal.aborted) break outer; await sleep(800); }
+    }
+  }
+  const aborted = ctl.signal.aborted;
+  if (blob && !aborted) {
+    try {
+      const { pub, local, prev, prevImages, ...meta } = v;
+      await LDB.put('files', v.id, blob); await LDB.put('meta', v.id, meta);
+      lKeysSet.add(v.id); hasLong = true; toast('Видео скачано. Теперь оно работает без интернета.', false, 5000);
+    } catch (e) { blob = null; if (e && e.name === 'QuotaExceededError') quota = true; try { await LDB.del('files', v.id); } catch (e2) {} }
+  }
+  ldl = null; unlockScreen(); lPaintDl();
+  if (aborted) toast('Скачивание отменено.', false, 3000);
+  else if (!blob) toast(quota ? 'Не хватает места на телефоне. Освободите место и попробуйте снова.' : 'Не удалось скачать. Проверьте интернет и нажмите ещё раз.', true, 6000);
+}
+function lDlClick() {
+  const v = lCur; if (!v || lKeysSet.has(v.id)) return;
+  if (ldl) {
+    if (ldl.id !== v.id) { toast('Дождитесь конца другой загрузки.', true); return; }
+    if (!ldl.arm) { ldl.arm = true; lPaintDl(); setTimeout(() => { if (ldl) { ldl.arm = false; lPaintDl(); } }, 3500); return; }
+    ldl.ctl.abort(); return;
+  }
+  lDownload(v);
+}
+async function lDelClick() {
+  const v = lCur; if (!v || !lKeysSet.has(v.id)) return;
+  const b = $('#lpDel');
+  if (!lDelArm) { lDelArm = 1; b.textContent = 'Точно удалить? Нажмите ещё раз'; setTimeout(() => { if (lDelArm) { lDelArm = 0; b.textContent = 'Удалить скачанное видео'; } }, 4000); return; }
+  lDelArm = 0; b.textContent = 'Удалить скачанное видео';
+  try { await LDB.del('files', v.id); await LDB.del('meta', v.id); } catch (e) {}
+  lKeysSet.delete(v.id); hasLong = lKeysSet.size > 0; lPaintDl(); toast('Скачанное видео удалено.', false, 3000);
+}
+function initLong() {
+  const vid = $('#lpVid'), vw = $('#lpVw'), wrap = $('#lpWrap'), sk = $('#lpSeek');
+  const goBack = () => lpClose();
+  $('#lBack').addEventListener('click', () => { $('#long').hidden = true; showChoice(); });
+  $('#lpBack').addEventListener('click', goBack); $('#lpFsBack').addEventListener('click', goBack);
+  $('#lpPlay').addEventListener('click', () => { if (vid.paused) lPlay(); else vid.pause(); lBumpHide(); });
+  const skip = d => { const t = vid.currentTime + d; vid.currentTime = Math.max(0, vid.duration ? Math.min(t, Math.max(vid.duration - 0.1, 0)) : t); lBumpHide(); };
+  $('#lpBk').addEventListener('click', () => skip(-LSKIP)); $('#lpFw').addEventListener('click', () => skip(LSKIP));
+  $('#lpFs').addEventListener('click', () => lSetFs(!lFs, false, true));
+  vw.addEventListener('click', () => { // в полном экране касание прячет/показывает кнопки, в обычном ставит паузу
+    if (lFs) { if (wrap.classList.contains('hide')) lBumpHide(); else { wrap.classList.add('hide'); clearTimeout(lHideT); } }
+    else if (vid.paused) lPlay(); else vid.pause();
+  });
+  $('#lpRetry').addEventListener('click', e => { e.stopPropagation(); lCi = 0; lTries = 0; $('#lpErr').hidden = true; vw.classList.add('loading'); if (lSrc.length) { vid.src = lSrc[0]; vid.load(); lPlay(); } });
+  [$('#lpCtl'), $('#lpFsBar')].forEach(n => n.addEventListener('pointerdown', lBumpHide));
+  sk.addEventListener('input', () => { lSeeking = true; $('#lpCur').textContent = fmtT(sk.value / 1000 * (vid.duration || 0)); lBumpHide(); });
+  sk.addEventListener('change', () => { if (vid.duration) vid.currentTime = sk.value / 1000 * vid.duration; setTimeout(() => { lSeeking = false; }, 80); });
+  ['pointerup', 'pointercancel', 'touchend'].forEach(n => sk.addEventListener(n, () => setTimeout(() => { lSeeking = false; }, 250)));
+  vid.addEventListener('loadedmetadata', () => {
+    $('#lpDur').textContent = fmtT(vid.duration);
+    const s = lResume != null ? lResume : (lCur ? lGetPos(lCur.id) : 0); lResume = null;
+    if (s > 5 && vid.duration && s < vid.duration - 10) { try { vid.currentTime = s; } catch (e) {} } // продолжаем с того места, где остановились
+  });
+  vid.addEventListener('durationchange', () => { $('#lpDur').textContent = fmtT(vid.duration); });
+  vid.addEventListener('timeupdate', () => {
+    const d = vid.duration || 0;
+    if (!lSeeking && d) { sk.value = Math.round(vid.currentTime / d * 1000); $('#lpCur').textContent = fmtT(vid.currentTime); }
+    if (Date.now() - lSavedAt > 3000) { lSavedAt = Date.now(); lSavePos(); }
+  });
+  ['canplay', 'playing', 'loadeddata'].forEach(n => vid.addEventListener(n, () => { lTries = 0; vw.classList.remove('loading'); $('#lpErr').hidden = true; }));
+  vid.addEventListener('waiting', () => { if (vid.getAttribute('src')) vw.classList.add('loading'); });
+  vid.addEventListener('play', () => { lSetPlayUi(true); lLock(); lBumpHide(); });
+  vid.addEventListener('pause', () => { lSetPlayUi(false); lUnlock(); lBumpHide(); lSavePos(); });
+  vid.addEventListener('ended', () => { lSetPlayUi(false); lUnlock(); if (lCur) lSetPos(lCur.id, 0); wrap.classList.remove('hide'); });
+  vid.addEventListener('error', () => {
+    if (!vid.getAttribute('src') || !lCur) return;
+    if (lCi < lSrc.length - 1) { lResume = vid.currentTime || null; lCi++; lTries = 0; vid.src = lSrc[lCi]; lPlay(); return; } // запасной адрес
+    if (lTries < 2) { lTries++; lResume = vid.currentTime || null; setTimeout(() => { if (lCur && vid.getAttribute('src')) { vid.load(); lPlay(); } }, 1500); return; }
+    vw.classList.remove('loading'); $('#lpErr').hidden = false;
+  });
+  $('#lpDl').addEventListener('click', lDlClick); $('#lpDel').addEventListener('click', lDelClick);
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && lFsNative) { lFsNative = false; if (lFs) lSetFs(false); } });
+  const mq = window.matchMedia('(orientation: landscape) and (max-height: 600px)'); // повернули телефон набок: сразу на весь экран
+  const onMq = e => { if ($('#lp').hidden) return; if (e.matches) lSetFs(true, true, false); else if (lFs && lFsAuto) lSetFs(false); };
+  if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { lSavePos(); } else if (!vid.paused && !$('#lp').hidden) lLock(); });
+  document.addEventListener('keydown', e => {
+    if ($('#lp').hidden) return;
+    if (e.key === ' ' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); if (vid.paused) lPlay(); else vid.pause(); }
+    else if (e.key === 'ArrowRight') skip(LSKIP); else if (e.key === 'ArrowLeft') skip(-LSKIP);
+    else if (e.key === 'Escape' && lFs) lSetFs(false);
+  });
+  window.addEventListener('pagehide', lSavePos);
+}
+
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { // чтобы сам сайт открывался без интернета
   window.addEventListener('load', () => { if (navigator.onLine) navigator.serviceWorker.register('sw.js').catch(() => {}); }); // без интернета ничего не запрашиваем
 }
@@ -1315,9 +1632,10 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { // ч
 async function init() {
   await restoreGh();
   listP = navigator.onLine ? loadPublished() : Promise.resolve(null);
-  initTabs(); initFeedControls(); initAdmin(); syncSound();
+  initTabs(); initFeedControls(); initAdmin(); initLong(); syncSound();
   let keys = null; try { keys = await oKeys('files'); } catch (e) {}
   offKeys = keys || []; hasOff = offKeys.length > 0;
+  try { hasLong = (await LDB.keys('files')).length > 0; } catch (e) {}
   setInterval(() => { // видео висит на загрузке больше 9 секунд: пробуем запасной адрес один раз
     const sl = track.children[index]; if (!sl) return;
     const vid = $('video', sl);
@@ -1327,7 +1645,7 @@ async function init() {
   }, 1500);
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); else if (!anyModalOpen() && appReady) playActive(); });
   await sleep(reduceMotion() ? 200 : 1200);
-  if (!navigator.onLine && hasOff && await startOffline()) return; // нет интернета и видео скачаны: сразу офлайн
+  if (!navigator.onLine && hasOff && !hasLong && await startOffline()) return; // нет интернета и видео скачаны: сразу офлайн
   if (keys === null) { await startOnline(); return; }                // память для офлайна недоступна: обычный режим
   busy(false); showChoice();
 }
