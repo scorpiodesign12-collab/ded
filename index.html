@@ -177,56 +177,59 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 
 /* Длинные видео */
 #long,#lp{position:fixed;inset:0;z-index:76;background:#05070c;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:calc(var(--safe-top) + 12px) 14px calc(var(--safe-bottom) + 24px);scrollbar-width:none}
-#long::-webkit-scrollbar,#lp::-webkit-scrollbar{display:none}
-#lp{z-index:77}
-body.lfs #lp{overflow:hidden}
-.lbar{display:flex;align-items:center;gap:12px;width:min(900px,100%);margin:0 auto 14px}
+#long::-webkit-scrollbar{display:none}
+.lbar{display:flex;align-items:center;gap:12px;width:min(640px,100%);margin:0 auto 16px;flex:none}
 .lbar h2{font-size:clamp(19px,5.2vw,26px);line-height:1.2;text-transform:uppercase;font-weight:800;min-width:0;overflow-wrap:anywhere}
-.lback{display:inline-flex;align-items:center;gap:8px;min-height:60px;padding:0 20px 0 14px;border-radius:16px;background:var(--surface2);border:2px solid var(--line);font-size:20px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;flex:none}
+.lback{display:inline-flex;align-items:center;gap:8px;min-height:60px;padding:0 20px 0 14px;border-radius:16px;background:rgba(26,34,52,.92);border:2px solid var(--line);font-size:20px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;flex:none;color:#fff}
 .lback svg{width:28px;height:28px}
-.lback:active,.lbtn:active,.lcard:active,.ldl:active{transform:scale(.98)}
-.llist{display:grid;gap:12px;width:min(640px,100%);margin:0 auto}
-.lcard{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;text-align:left;min-height:100px;padding:14px;border-radius:18px;background:var(--surface);border:2px solid var(--line)}
-.lcard .pl{width:64px;height:64px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center}
-.lcard .pl svg{width:30px;height:30px}
-.lcard strong{display:block;font-size:20px;line-height:1.25;overflow-wrap:anywhere}
-.lcard small{display:block;margin-top:5px;font-size:15px;color:var(--muted)}
-.lcard small.ok{color:#7fd19b}
-.lcard:disabled{opacity:.45;cursor:not-allowed}
+.lback:active,.lbtn:active,.ldl:active,.lthumb:active{transform:scale(.98)}
+.llist{display:grid;gap:26px;width:min(640px,100%);margin:0 auto}
+.lcard{display:grid;gap:0}
+.lthumb{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#0b1220;border:1px solid var(--line);padding:0}
+.lthumb video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;background:#0b1220}
+.lthumb .pl{position:absolute;left:50%;top:50%;width:68px;height:68px;margin:-34px 0 0 -34px;border-radius:50%;background:rgba(8,11,18,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;color:#fff}
+.lthumb .pl svg{width:32px;height:32px}
+.lthumb .dur{position:absolute;right:8px;bottom:8px;padding:2px 8px;border-radius:7px;background:rgba(0,0,0,.82);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff}
+.lthumb:disabled{opacity:.5;cursor:not-allowed}
+.ltitle{margin-top:12px;font-size:clamp(18px,5vw,22px);font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.lmeta{margin-top:4px;font-size:15px;color:var(--muted)}
+.lmeta b{color:#7fd19b;font-weight:600}
+.lcard .ldl{margin-top:14px}
+.lcard .lnote{margin-top:8px;text-align:center}
+.lcard .btn.ghost{margin-top:6px}
 .lempty{padding:30px 10px;text-align:center;font-size:19px;line-height:1.4;color:var(--muted)}
-.lpwrap{width:min(900px,100%);margin:0 auto;display:flex;flex-direction:column;background:#000;border-radius:16px;overflow:hidden}
-.lpvw{position:relative;width:100%;aspect-ratio:16/9;max-height:56dvh;background:#000}
-.lpvw video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block}
-.lpspin{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
-.lpvw.loading .lpspin{display:flex}
-.lperr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;background:rgba(8,11,18,.88);font-size:18px}
-.lpctl{padding:10px 14px 14px;background:var(--surface)}
-.lpctl input[type=range]{width:100%;height:44px;accent-color:#60a5fa;background:transparent;margin:0}
-.lptime{display:flex;justify-content:space-between;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;margin:0 2px 10px}
-.lprow{display:flex;flex-wrap:wrap;gap:10px}
-.lbtn{flex:1 1 0;min-height:78px;padding:6px 8px;border-radius:18px;background:var(--surface2);border:2px solid var(--line);font-size:19px;font-weight:800;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1.1}
-.lbtn svg{width:30px;height:30px}
-.lbtn.main{flex:1.5 1 0;background:var(--blue);border-color:var(--blue)}
-.lbtn.fsb{flex:1 1 100%;min-height:62px;flex-direction:row;gap:10px;font-size:18px}
-.lpfsbar{display:none;position:absolute;top:0;left:0;right:0;z-index:2;padding:calc(var(--safe-top) + 10px) 14px 36px;background:linear-gradient(rgba(0,0,0,.75),transparent)}
-.lpwrap.fs{position:fixed;inset:0;z-index:95;width:100%;margin:0;border-radius:0;background:#000}
-.lpwrap.fs .lpvw{position:absolute;inset:0;aspect-ratio:auto;max-height:none}
-.lpwrap.fs .lpfsbar{display:flex}
-.lpwrap.fs .lpctl{position:absolute;left:0;right:0;bottom:0;z-index:2;background:linear-gradient(transparent,rgba(0,0,0,.9) 35%);padding:30px 14px calc(var(--safe-bottom) + 12px);transition:opacity .3s}
-.lpwrap.fs .lpfsbar{transition:opacity .3s}
-.lpwrap.fs .lbtn{background:rgba(26,34,52,.92)}
-.lpwrap.fs .lbtn.main{background:var(--blue)}
-.lpwrap.fs.hide .lpctl,.lpwrap.fs.hide .lpfsbar{opacity:0;pointer-events:none}
-.lpwrap.fs.hide{cursor:none}
-@media (orientation:landscape){.lpwrap.fs .lbtn.fsb{flex:1 1 0;flex-direction:column}.lpwrap.fs .lpctl{padding-top:16px}.lpwrap.fs .lbtn{min-height:66px}}
-.lpdown{width:min(900px,100%);margin:16px auto 0;display:grid;gap:10px;text-align:center}
-.ldl{position:relative;overflow:hidden;width:100%;min-height:88px;padding:12px 16px;border-radius:20px;background:var(--blue);border:2px solid #3b82f6;color:#fff;font-size:clamp(15px,4.4vw,19px);font-weight:800;line-height:1.25;text-transform:uppercase;letter-spacing:.02em}
+.ldl{position:relative;overflow:hidden;width:100%;min-height:88px;padding:12px 16px;border-radius:20px;background:var(--blue);border:2px solid #3b82f6;color:#fff;font-size:clamp(15px,4.4vw,19px);font-weight:800;line-height:1.25;text-transform:uppercase;letter-spacing:.02em;text-align:center}
 .ldl .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(37,99,235,.9);transition:width .25s}
 .ldl .tx{position:relative;display:block}
 .ldl.run{background:var(--surface2);border-color:#60a5fa}
 .ldl.done{background:#166534;border-color:#22c55e;cursor:default}
 .lnote{font-size:16px;line-height:1.4;color:var(--muted);min-height:1.4em}
 .big.long{background:#7c3aed}
+/* Плеер: сразу на весь экран, в любой ориентации */
+#lp{z-index:77;padding:0;background:#000;overflow:hidden}
+.lpvw{position:absolute;inset:0;background:#000}
+.lpvw video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.lpspin{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+.lpvw.loading .lpspin{display:flex}
+.lpbig{position:absolute;left:50%;top:50%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;background:rgba(8,11,18,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--line);display:none;align-items:center;justify-content:center;pointer-events:none;color:#fff}
+.lpbig svg{width:44px;height:44px}
+#lp.paused .lpbig{display:flex}
+#lp.paused .lpvw.loading .lpbig{display:none}
+.lperr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;background:rgba(8,11,18,.88);font-size:18px;z-index:3}
+.lpfsbar{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;gap:12px;padding:calc(var(--safe-top) + 10px) 14px 40px;background:linear-gradient(rgba(0,0,0,.8),transparent);transition:opacity .3s}
+.lpfsbar h2{font-size:clamp(16px,4.5vw,22px);line-height:1.2;font-weight:800;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.lpctl{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:34px 14px calc(var(--safe-bottom) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.9) 40%);transition:opacity .3s}
+.lpctl input[type=range]{width:100%;height:44px;accent-color:#60a5fa;background:transparent;margin:0}
+.lptime{display:flex;justify-content:space-between;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;margin:0 2px 10px}
+.lprow{display:flex;gap:10px;max-width:640px;margin:0 auto}
+.lbtn{flex:1 1 0;min-height:76px;padding:6px 8px;border-radius:18px;background:rgba(26,34,52,.92);border:2px solid var(--line);font-size:19px;font-weight:800;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1.1;color:#fff}
+.lbtn svg{width:30px;height:30px}
+.lbtn.main{flex:1.5 1 0;background:var(--blue);border-color:var(--blue)}
+.lpline{position:absolute;left:0;right:0;bottom:0;height:3px;z-index:1;background:rgba(255,255,255,.25);pointer-events:none}
+.lpline i{display:block;height:100%;width:0;background:#fff}
+#lp.hide .lpctl,#lp.hide .lpfsbar{opacity:0;pointer-events:none}
+#lp.hide{cursor:none}
+@media (orientation:landscape) and (max-height:600px){.lbtn{min-height:62px}.lpctl{padding-top:20px}.lptime{margin-bottom:4px}.lpctl input[type=range]{height:36px}}
 
 /* Уведомления */
 #toasts{position:fixed;left:0;right:0;top:calc(var(--safe-top) + 80px);z-index:90;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 14px}
@@ -322,37 +325,30 @@ body.lfs #lp{overflow:hidden}
   </div>
 </div>
 
-<!-- Длинные видео: список -->
+<!-- Длинные видео: страница с карточками -->
 <div id="long" hidden>
   <div class="lbar"><button class="lback" type="button" id="lBack"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg>Назад</button><h2>Длинные видео</h2></div>
   <div class="llist" id="lList"></div>
 </div>
 
-<!-- Длинные видео: плеер -->
+<!-- Длинные видео: плеер на весь экран -->
 <div id="lp" hidden>
-  <div class="lbar"><button class="lback" type="button" id="lpBack"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg>Назад</button><h2 id="lpTitle"></h2></div>
-  <div class="lpwrap" id="lpWrap">
-    <div class="lpvw loading" id="lpVw">
-      <video id="lpVid" playsinline webkit-playsinline preload="metadata"></video>
-      <div class="lpspin"><svg class="spin" viewBox="0 0 44 44" aria-hidden="true"><circle class="a" cx="22" cy="22" r="18"/><circle class="b" cx="22" cy="22" r="18"/></svg></div>
-      <div class="lperr" id="lpErr" hidden><p>Не удалось загрузить видео. Проверьте интернет.</p><button class="btn" type="button" id="lpRetry"><svg class="i" aria-hidden="true"><use href="#i-retry"/></svg>Повторить</button></div>
-    </div>
-    <div class="lpfsbar" id="lpFsBar"><button class="lback" type="button" id="lpFsBack"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg>Назад</button></div>
-    <div class="lpctl" id="lpCtl">
-      <input type="range" id="lpSeek" min="0" max="1000" step="1" value="0" aria-label="Перемотка">
-      <div class="lptime"><span id="lpCur">0:00</span><span id="lpDur">0:00</span></div>
-      <div class="lprow">
-        <button class="lbtn" type="button" id="lpBk" aria-label="Назад на 15 секунд"><svg class="i" aria-hidden="true"><use href="#i-rew"/></svg><span>−15 с</span></button>
-        <button class="lbtn main" type="button" id="lpPlay"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg><span>Пуск</span></button>
-        <button class="lbtn" type="button" id="lpFw" aria-label="Вперёд на 15 секунд"><svg class="i" aria-hidden="true"><use href="#i-retry"/></svg><span>+15 с</span></button>
-        <button class="lbtn fsb" type="button" id="lpFs"><svg class="i" aria-hidden="true"><use href="#i-full"/></svg><span>На весь экран</span></button>
-      </div>
-    </div>
+  <div class="lpvw loading" id="lpVw">
+    <video id="lpVid" playsinline webkit-playsinline preload="metadata"></video>
+    <div class="lpspin"><svg class="spin" viewBox="0 0 44 44" aria-hidden="true"><circle class="a" cx="22" cy="22" r="18"/><circle class="b" cx="22" cy="22" r="18"/></svg></div>
+    <div class="lpbig"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg></div>
+    <div class="lperr" id="lpErr" hidden><p>Не удалось загрузить видео. Проверьте интернет.</p><button class="btn" type="button" id="lpRetry"><svg class="i" aria-hidden="true"><use href="#i-retry"/></svg>Повторить</button></div>
   </div>
-  <div class="lpdown" id="lpDown">
-    <button class="ldl" type="button" id="lpDl"><i class="fill" id="lpDlFill"></i><span class="tx" id="lpDlTx">Скачать, чтобы смотреть без интернета</span></button>
-    <p class="lnote" id="lpNote" role="status"></p>
-    <button class="btn ghost" type="button" id="lpDel" hidden>Удалить скачанное видео</button>
+  <div class="lpline"><i id="lpLine"></i></div>
+  <div class="lpfsbar" id="lpFsBar"><button class="lback" type="button" id="lpBack"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg>Назад</button><h2 id="lpTitle"></h2></div>
+  <div class="lpctl" id="lpCtl">
+    <input type="range" id="lpSeek" min="0" max="1000" step="1" value="0" aria-label="Перемотка">
+    <div class="lptime"><span id="lpCur">0:00</span><span id="lpDur">0:00</span></div>
+    <div class="lprow">
+      <button class="lbtn" type="button" id="lpBk" aria-label="Назад на 15 секунд"><svg class="i" aria-hidden="true"><use href="#i-rew"/></svg><span>−15 с</span></button>
+      <button class="lbtn main" type="button" id="lpPlay"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg><span>Пуск</span></button>
+      <button class="lbtn" type="button" id="lpFw" aria-label="Вперёд на 15 секунд"><svg class="i" aria-hidden="true"><use href="#i-retry"/></svg><span>+15 с</span></button>
+    </div>
   </div>
 </div>
 
@@ -1410,7 +1406,7 @@ $('#dlRetry').addEventListener('click', () => runDownload(true));
 $('#dlOnline').addEventListener('click', startOnline);
 
 /* ===== Длинные видео =====
-   Отдельный раздел: можно смотреть сразу (поток) или скачать в закрытую память приложения и смотреть без интернета.
+   Страница с карточками (превью, длительность, название, кнопка «Скачать»). Нажатие на превью открывает видео на весь экран.
    Файлы лежат в своей базе 'grandpa-long', отдельно от коротких офлайн-видео. */
 function idbStore2(name, stores) {
   let p = null;
@@ -1420,8 +1416,8 @@ function idbStore2(name, stores) {
 }
 const LDB = idbStore2('grandpa-long', ['files', 'meta']);
 const LSKIP = 15, LPOS_KEY = 'grandpa.lpos.v1';
-let hasLong = false, lItemsCache = [], lKeysSet = new Set(), lCur = null, lFromList = false, ldl = null;
-let lSrc = [], lCi = 0, lTries = 0, lBlobUrl = '', lResume = null, lFs = false, lFsAuto = false, lFsNative = false, lHideT = 0, lSeeking = false, lwake = null, lSavedAt = 0, lDelArm = 0;
+let hasLong = false, lItemsCache = [], lKeysSet = new Set(), lCur = null, ldl = null, lCards = new Map(), lThumbUrls = [];
+let lSrc = [], lCi = 0, lTries = 0, lBlobUrl = '', lResume = null, lFsNative = false, lHideT = 0, lSeeking = false, lwake = null, lSavedAt = 0;
 
 function fmtT(s) { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), c = s % 60, p = n => String(n).padStart(2, '0'); return h ? h + ':' + p(m) + ':' + p(c) : m + ':' + p(c); }
 function lTitleOf(v) {
@@ -1448,74 +1444,85 @@ async function openLong() {
   busy(true); let items = [];
   try { items = await lGather(); } catch (e) {}
   busy(false); lItemsCache = items; $('#choice').hidden = true;
-  if (items.length === 1) lOpenPlayer(items[0], false); else showLongList();
+  await showLongList();
 }
-function showLongList() {
-  $('#lp').hidden = true; const box = $('#lList'); box.replaceChildren();
+async function lThumbSrc(v) { // превью берём из самого видео (кадр + длительность); без сети, если скачано, из памяти
+  if (!navigator.onLine && lKeysSet.has(v.id)) { try { const b = await LDB.get('files', v.id); if (b) { const u = URL.createObjectURL(b); lThumbUrls.push(u); return u + '#t=0.5'; } } catch (e) {} }
+  return srcList({ ...v, prev: null })[0] + '#t=0.5';
+}
+function lBuildCard(v) {
+  const can = lKeysSet.has(v.id) || navigator.onLine, card = el('div', 'lcard');
+  const th = el('button', 'lthumb'); th.type = 'button'; th.disabled = !can; th.setAttribute('aria-label', 'Смотреть: ' + lTitleOf(v));
+  const tv = document.createElement('video'); tv.muted = true; tv.playsInline = true; tv.preload = 'metadata'; tv.setAttribute('playsinline', ''); tv.tabIndex = -1;
+  const dur = el('span', 'dur', ''); dur.hidden = true;
+  tv.addEventListener('loadedmetadata', () => { if (tv.duration && isFinite(tv.duration)) { dur.textContent = fmtT(tv.duration); dur.hidden = false; } });
+  tv.addEventListener('error', () => tv.remove());
+  lThumbSrc(v).then(u => { tv.src = u; });
+  const pl = el('span', 'pl'); pl.appendChild(icon('i-play'));
+  th.append(tv, pl, dur); th.addEventListener('click', () => lOpenPlayer(v));
+  const title = el('div', 'ltitle', lTitleOf(v)), meta = el('div', 'lmeta');
+  const dl = el('button', 'ldl'); dl.type = 'button'; const fill = el('i', 'fill'), tx = el('span', 'tx'); dl.append(fill, tx);
+  dl.addEventListener('click', () => lDlClick(v));
+  const note = el('p', 'lnote'); note.setAttribute('role', 'status');
+  const del = el('button', 'btn ghost', 'Удалить скачанное видео'); del.type = 'button'; del.hidden = true;
+  const r = { v, th, meta, dl, fill, tx, note, del, arm: 0 };
+  del.addEventListener('click', () => lDelClick(r));
+  card.append(th, title, meta, dl, note, del); lCards.set(v.id, r); lPaintCard(v);
+  return card;
+}
+function lPaintCard(v) {
+  const r = lCards.get(v.id); if (!r) return;
+  const local = v.local || /^(blob:|data:)/i.test(v.url || '');
+  const done = lKeysSet.has(v.id), run = !!(ldl && ldl.id === v.id), can = done || navigator.onLine;
+  r.meta.replaceChildren(document.createTextNode(formatDate(v.date) + (!can ? ' · Нужен интернет' : '') + (done ? ' · ' : '')));
+  if (done) r.meta.appendChild(el('b', '', 'Скачано, работает без интернета'));
+  r.dl.hidden = local; r.del.hidden = !done;
+  if (local) { r.note.textContent = 'Это видео временное: скачать его нельзя.'; return; }
+  r.dl.className = 'ldl' + (done ? ' done' : run ? ' run' : ''); r.dl.disabled = done;
+  if (run) {
+    r.tx.textContent = ldl.arm ? 'Точно отменить? Нажмите ещё раз' : ldl.p >= 0 ? 'Скачиваем… ' + Math.round(ldl.p * 100) + '%' : 'Скачиваем… ' + ldl.mb + ' МБ';
+    r.fill.style.width = (ldl.p >= 0 ? ldl.p * 100 : 0) + '%'; r.note.textContent = 'Не выходите из приложения, пока идёт скачивание.';
+  } else if (done) { r.tx.textContent = 'Скачано ✓ Работает без интернета'; r.fill.style.width = '0'; r.note.textContent = ''; }
+  else { r.tx.textContent = 'Скачать, чтобы смотреть без интернета'; r.fill.style.width = '0'; r.note.textContent = ldl ? 'Сейчас скачивается другое видео.' : ''; }
+}
+function lPaintAll() { lItemsCache.forEach(lPaintCard); }
+async function showLongList() {
+  const box = $('#lList'); box.replaceChildren(); lCards.clear();
+  lThumbUrls.forEach(u => URL.revokeObjectURL(u)); lThumbUrls = [];
   const items = lItemsCache.filter(v => !(v._off && !lKeysSet.has(v.id)));
   if (!items.length) box.appendChild(el('p', 'lempty', 'Пока нет длинных видео. Новые появятся здесь.'));
-  items.forEach(v => {
-    const d = lKeysSet.has(v.id), can = d || navigator.onLine, b = el('button', 'lcard'); b.type = 'button'; b.disabled = !can;
-    const pl = el('span', 'pl'); pl.appendChild(icon('i-play'));
-    const t = el('div'); t.append(el('strong', '', lTitleOf(v)), el('small', d ? 'ok' : '', (d ? 'Скачано, без интернета · ' : can ? '' : 'Нужен интернет · ') + formatDate(v.date)));
-    b.append(pl, t); b.addEventListener('click', () => lOpenPlayer(v, true)); box.appendChild(b);
-  });
+  items.forEach(v => box.appendChild(lBuildCard(v)));
   $('#long').hidden = false; $('#long').scrollTop = 0;
 }
 function lSetPlayUi(playing) {
   const b = $('#lpPlay'); b.querySelector('use').setAttribute('href', playing ? '#i-pause' : '#i-play'); b.querySelector('span').textContent = playing ? 'Пауза' : 'Пуск';
+  $('#lp').classList.toggle('paused', !playing);
 }
 function lPlay() { const p = $('#lpVid').play(); if (p && p.catch) p.catch(() => {}); }
-async function lOpenPlayer(v, fromList) {
-  lCur = v; lFromList = fromList; lTries = 0; lCi = 0; lResume = null; lSeeking = false;
-  const vid = $('#lpVid');
-  $('#long').hidden = true; $('#lp').hidden = false; $('#lp').scrollTop = 0;
+function lBumpHide() {
+  const w = $('#lp'); w.classList.remove('hide'); clearTimeout(lHideT);
+  if (!$('#lpVid').paused) lHideT = setTimeout(() => w.classList.add('hide'), 3500);
+}
+async function lOpenPlayer(v) {
+  const w = $('#lp'), vid = $('#lpVid');
+  lCur = v; lTries = 0; lCi = 0; lResume = null; lSeeking = false;
+  w.hidden = false; w.classList.remove('hide');
+  if (w.requestFullscreen && !document.fullscreenElement) { try { const r = w.requestFullscreen({ navigationUI: 'hide' }); if (r && r.then) r.then(() => { lFsNative = true; }).catch(() => {}); } catch (e) {} } // настоящий полный экран (убирает панели браузера)
   $('#lpTitle').textContent = lTitleOf(v); $('#lpErr').hidden = true; $('#lpVw').classList.add('loading');
-  $('#lpSeek').value = 0; $('#lpCur').textContent = '0:00'; $('#lpDur').textContent = '0:00'; lSetPlayUi(false); lDelArm = 0; $('#lpDel').textContent = 'Удалить скачанное видео';
-  lPaintDl();
+  $('#lpSeek').value = 0; $('#lpLine').style.width = '0'; $('#lpCur').textContent = '0:00'; $('#lpDur').textContent = '0:00'; lSetPlayUi(false);
   if (lBlobUrl) { URL.revokeObjectURL(lBlobUrl); lBlobUrl = ''; }
   lSrc = [];
   if (lKeysSet.has(v.id)) { try { const b = await LDB.get('files', v.id); if (b) { lBlobUrl = URL.createObjectURL(b); lSrc = [lBlobUrl]; } } catch (e) {} } // скачанная копия, если есть
   if (lCur !== v) return;
   if (!lSrc.length) lSrc = srcList({ ...v, prev: null });
   vid.src = lSrc[0]; lPlay();
-  if (window.matchMedia('(orientation: landscape) and (max-height: 600px)').matches) lSetFs(true, true, false);
 }
 function lpClose() {
   const vid = $('#lpVid'); lSavePos(); vid.pause(); vid.removeAttribute('src'); vid.load();
   if (lBlobUrl) { URL.revokeObjectURL(lBlobUrl); lBlobUrl = ''; }
-  lSetFs(false); lUnlock(); $('#lp').hidden = true; lCur = null;
-  if (lFromList) showLongList(); else showChoice();
-}
-function lBumpHide() {
-  const w = $('#lpWrap'); w.classList.remove('hide'); clearTimeout(lHideT);
-  if (lFs && !$('#lpVid').paused) lHideT = setTimeout(() => w.classList.add('hide'), 3500);
-}
-function lSetFs(on, auto, native) {
-  if (on === lFs) return;
-  const w = $('#lpWrap'); lFs = on; lFsAuto = on && !!auto; w.classList.toggle('fs', on); w.classList.remove('hide');
-  document.body.classList.toggle('lfs', on);
-  const b = $('#lpFs'); b.querySelector('use').setAttribute('href', on ? '#i-min' : '#i-full'); b.querySelector('span').textContent = on ? 'Свернуть' : 'На весь экран';
-  if (on) {
-    if (native && w.requestFullscreen) { try { const r = w.requestFullscreen({ navigationUI: 'hide' }); if (r && r.then) r.then(() => { lFsNative = true; }).catch(() => {}); } catch (e) {} }
-    lBumpHide();
-  } else {
-    clearTimeout(lHideT);
-    if (document.fullscreenElement) { lFsNative = false; try { document.exitFullscreen().catch(() => {}); } catch (e) {} }
-  }
-}
-function lPaintDl() {
-  const v = lCur; if (!v) return;
-  const b = $('#lpDl'), tx = $('#lpDlTx'), fill = $('#lpDlFill'), note = $('#lpNote'), del = $('#lpDel');
-  if (v.local || /^(blob:|data:)/i.test(v.url || '')) { b.hidden = true; del.hidden = true; note.textContent = 'Это видео временное: скачать его нельзя.'; return; }
-  const done = lKeysSet.has(v.id), run = !!(ldl && ldl.id === v.id);
-  b.hidden = false; b.className = 'ldl' + (done ? ' done' : run ? ' run' : ''); b.disabled = done;
-  if (run) {
-    tx.textContent = ldl.arm ? 'Точно отменить? Нажмите ещё раз' : ldl.p >= 0 ? 'Скачиваем… ' + Math.round(ldl.p * 100) + '%' : 'Скачиваем… ' + ldl.mb + ' МБ';
-    fill.style.width = (ldl.p >= 0 ? ldl.p * 100 : 0) + '%'; note.textContent = 'Не выходите из приложения, пока идёт скачивание.';
-  } else if (done) { tx.textContent = 'Скачано ✓ Работает без интернета'; fill.style.width = '0'; note.textContent = ''; }
-  else { tx.textContent = 'Скачать, чтобы смотреть без интернета'; fill.style.width = '0'; note.textContent = ldl ? 'Сейчас скачивается другое видео.' : ''; }
-  del.hidden = !done;
+  clearTimeout(lHideT); lUnlock();
+  if (document.fullscreenElement) { lFsNative = false; try { document.exitFullscreen().catch(() => {}); } catch (e) {} }
+  lFsNative = false; $('#lp').hidden = true; lCur = null; lPaintAll();
 }
 async function lFetch(url, signal, onProg) {
   const r = await fetch(url, { cache: 'no-store', credentials: 'omit', signal });
@@ -1532,12 +1539,12 @@ async function lFetch(url, signal, onProg) {
 }
 async function lDownload(v) {
   if (!navigator.onLine) { toast('Нет интернета.', true); return; }
-  const ctl = new AbortController(); ldl = { id: v.id, p: 0, mb: 0, ctl, arm: false }; lPaintDl(); lockScreen();
+  const ctl = new AbortController(); ldl = { id: v.id, p: 0, mb: 0, ctl, arm: false }; lPaintAll(); lockScreen();
   let blob = null, quota = false, last = 0;
   const urls = [...new Set(srcList({ ...v, prev: null }))];
   outer: for (const u of urls) {
     for (let a = 0; a < 2; a++) {
-      try { blob = await lFetch(u, ctl.signal, (p, mb) => { if (!ldl) return; ldl.p = p; ldl.mb = mb; const n = Date.now(); if (n - last > 200) { last = n; lPaintDl(); } }); break outer; }
+      try { blob = await lFetch(u, ctl.signal, (p, mb) => { if (!ldl) return; ldl.p = p; ldl.mb = mb; const n = Date.now(); if (n - last > 200) { last = n; lPaintAll(); } }); break outer; }
       catch (e) { if (ctl.signal.aborted) break outer; await sleep(800); }
     }
   }
@@ -1549,40 +1556,35 @@ async function lDownload(v) {
       lKeysSet.add(v.id); hasLong = true; toast('Видео скачано. Теперь оно работает без интернета.', false, 5000);
     } catch (e) { blob = null; if (e && e.name === 'QuotaExceededError') quota = true; try { await LDB.del('files', v.id); } catch (e2) {} }
   }
-  ldl = null; unlockScreen(); lPaintDl();
+  ldl = null; unlockScreen(); lPaintAll();
   if (aborted) toast('Скачивание отменено.', false, 3000);
   else if (!blob) toast(quota ? 'Не хватает места на телефоне. Освободите место и попробуйте снова.' : 'Не удалось скачать. Проверьте интернет и нажмите ещё раз.', true, 6000);
 }
-function lDlClick() {
-  const v = lCur; if (!v || lKeysSet.has(v.id)) return;
+function lDlClick(v) {
+  if (lKeysSet.has(v.id)) return;
   if (ldl) {
     if (ldl.id !== v.id) { toast('Дождитесь конца другой загрузки.', true); return; }
-    if (!ldl.arm) { ldl.arm = true; lPaintDl(); setTimeout(() => { if (ldl) { ldl.arm = false; lPaintDl(); } }, 3500); return; }
+    if (!ldl.arm) { ldl.arm = true; lPaintAll(); setTimeout(() => { if (ldl) { ldl.arm = false; lPaintAll(); } }, 3500); return; }
     ldl.ctl.abort(); return;
   }
   lDownload(v);
 }
-async function lDelClick() {
-  const v = lCur; if (!v || !lKeysSet.has(v.id)) return;
-  const b = $('#lpDel');
-  if (!lDelArm) { lDelArm = 1; b.textContent = 'Точно удалить? Нажмите ещё раз'; setTimeout(() => { if (lDelArm) { lDelArm = 0; b.textContent = 'Удалить скачанное видео'; } }, 4000); return; }
-  lDelArm = 0; b.textContent = 'Удалить скачанное видео';
+async function lDelClick(r) {
+  const v = r.v; if (!lKeysSet.has(v.id)) return;
+  if (!r.arm) { r.arm = 1; r.del.textContent = 'Точно удалить? Нажмите ещё раз'; setTimeout(() => { if (r.arm) { r.arm = 0; r.del.textContent = 'Удалить скачанное видео'; } }, 4000); return; }
+  r.arm = 0; r.del.textContent = 'Удалить скачанное видео';
   try { await LDB.del('files', v.id); await LDB.del('meta', v.id); } catch (e) {}
-  lKeysSet.delete(v.id); hasLong = lKeysSet.size > 0; lPaintDl(); toast('Скачанное видео удалено.', false, 3000);
+  lKeysSet.delete(v.id); hasLong = lKeysSet.size > 0; toast('Скачанное видео удалено.', false, 3000);
+  if (v._off) showLongList(); else lPaintAll();
 }
 function initLong() {
-  const vid = $('#lpVid'), vw = $('#lpVw'), wrap = $('#lpWrap'), sk = $('#lpSeek');
-  const goBack = () => lpClose();
+  const vid = $('#lpVid'), vw = $('#lpVw'), w = $('#lp'), sk = $('#lpSeek');
   $('#lBack').addEventListener('click', () => { $('#long').hidden = true; showChoice(); });
-  $('#lpBack').addEventListener('click', goBack); $('#lpFsBack').addEventListener('click', goBack);
+  $('#lpBack').addEventListener('click', lpClose);
   $('#lpPlay').addEventListener('click', () => { if (vid.paused) lPlay(); else vid.pause(); lBumpHide(); });
   const skip = d => { const t = vid.currentTime + d; vid.currentTime = Math.max(0, vid.duration ? Math.min(t, Math.max(vid.duration - 0.1, 0)) : t); lBumpHide(); };
   $('#lpBk').addEventListener('click', () => skip(-LSKIP)); $('#lpFw').addEventListener('click', () => skip(LSKIP));
-  $('#lpFs').addEventListener('click', () => lSetFs(!lFs, false, true));
-  vw.addEventListener('click', () => { // в полном экране касание прячет/показывает кнопки, в обычном ставит паузу
-    if (lFs) { if (wrap.classList.contains('hide')) lBumpHide(); else { wrap.classList.add('hide'); clearTimeout(lHideT); } }
-    else if (vid.paused) lPlay(); else vid.pause();
-  });
+  vw.addEventListener('click', () => { if (vid.paused) lPlay(); else vid.pause(); lBumpHide(); }); // касание видео = пауза / пуск
   $('#lpRetry').addEventListener('click', e => { e.stopPropagation(); lCi = 0; lTries = 0; $('#lpErr').hidden = true; vw.classList.add('loading'); if (lSrc.length) { vid.src = lSrc[0]; vid.load(); lPlay(); } });
   [$('#lpCtl'), $('#lpFsBar')].forEach(n => n.addEventListener('pointerdown', lBumpHide));
   sk.addEventListener('input', () => { lSeeking = true; $('#lpCur').textContent = fmtT(sk.value / 1000 * (vid.duration || 0)); lBumpHide(); });
@@ -1596,31 +1598,27 @@ function initLong() {
   vid.addEventListener('durationchange', () => { $('#lpDur').textContent = fmtT(vid.duration); });
   vid.addEventListener('timeupdate', () => {
     const d = vid.duration || 0;
-    if (!lSeeking && d) { sk.value = Math.round(vid.currentTime / d * 1000); $('#lpCur').textContent = fmtT(vid.currentTime); }
+    if (d) { $('#lpLine').style.width = (vid.currentTime / d * 100) + '%'; if (!lSeeking) { sk.value = Math.round(vid.currentTime / d * 1000); $('#lpCur').textContent = fmtT(vid.currentTime); } }
     if (Date.now() - lSavedAt > 3000) { lSavedAt = Date.now(); lSavePos(); }
   });
   ['canplay', 'playing', 'loadeddata'].forEach(n => vid.addEventListener(n, () => { lTries = 0; vw.classList.remove('loading'); $('#lpErr').hidden = true; }));
   vid.addEventListener('waiting', () => { if (vid.getAttribute('src')) vw.classList.add('loading'); });
   vid.addEventListener('play', () => { lSetPlayUi(true); lLock(); lBumpHide(); });
-  vid.addEventListener('pause', () => { lSetPlayUi(false); lUnlock(); lBumpHide(); lSavePos(); });
-  vid.addEventListener('ended', () => { lSetPlayUi(false); lUnlock(); if (lCur) lSetPos(lCur.id, 0); wrap.classList.remove('hide'); });
+  vid.addEventListener('pause', () => { if (!vid.getAttribute('src')) return; lSetPlayUi(false); lUnlock(); lBumpHide(); lSavePos(); });
+  vid.addEventListener('ended', () => { lSetPlayUi(false); lUnlock(); if (lCur) lSetPos(lCur.id, 0); w.classList.remove('hide'); });
   vid.addEventListener('error', () => {
     if (!vid.getAttribute('src') || !lCur) return;
     if (lCi < lSrc.length - 1) { lResume = vid.currentTime || null; lCi++; lTries = 0; vid.src = lSrc[lCi]; lPlay(); return; } // запасной адрес
     if (lTries < 2) { lTries++; lResume = vid.currentTime || null; setTimeout(() => { if (lCur && vid.getAttribute('src')) { vid.load(); lPlay(); } }, 1500); return; }
     vw.classList.remove('loading'); $('#lpErr').hidden = false;
   });
-  $('#lpDl').addEventListener('click', lDlClick); $('#lpDel').addEventListener('click', lDelClick);
-  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && lFsNative) { lFsNative = false; if (lFs) lSetFs(false); } });
-  const mq = window.matchMedia('(orientation: landscape) and (max-height: 600px)'); // повернули телефон набок: сразу на весь экран
-  const onMq = e => { if ($('#lp').hidden) return; if (e.matches) lSetFs(true, true, false); else if (lFs && lFsAuto) lSetFs(false); };
-  if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { lSavePos(); } else if (!vid.paused && !$('#lp').hidden) lLock(); });
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && lFsNative && !w.hidden) lpClose(); }); // системный «назад» из полного экрана = НАЗАД
+  document.addEventListener('visibilitychange', () => { if (document.hidden) lSavePos(); else if (!vid.paused && !w.hidden) lLock(); });
   document.addEventListener('keydown', e => {
-    if ($('#lp').hidden) return;
+    if (w.hidden) return;
     if (e.key === ' ' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); if (vid.paused) lPlay(); else vid.pause(); }
     else if (e.key === 'ArrowRight') skip(LSKIP); else if (e.key === 'ArrowLeft') skip(-LSKIP);
-    else if (e.key === 'Escape' && lFs) lSetFs(false);
+    else if (e.key === 'Escape') lpClose();
   });
   window.addEventListener('pagehide', lSavePos);
 }
