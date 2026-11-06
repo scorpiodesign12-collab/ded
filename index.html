@@ -73,6 +73,21 @@ html,body{overscroll-behavior:none}
 label{display:grid;gap:6px;font-size:15px;color:var(--muted)}
 input[type=text],input[type=url],input[type=password],input[type=date]{width:100%;min-height:48px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:16px;color-scheme:dark}
 input[type=file]{display:none}
+/* Кнопка выбора файла: сам input лежит прозрачным поверх кнопки, поэтому нажатие всегда открывает системный выбор (работает и в APK) */
+.pick{position:relative;overflow:hidden}
+.pick input[type=file]{display:block;position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+.dlist{display:grid;gap:8px}
+.dlist:empty{display:none}
+.drow{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:12px;background:var(--bg);border:1px solid #2563EB}
+.drow .dth{position:relative;width:56px;height:56px;border-radius:10px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.drow .dth video,.drow .dth img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.drow .dn{min-width:0}
+.drow .dn strong{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .dn small{color:var(--muted);font-size:14px}
+.drow .dn small.bad{color:#ff7a84}
+.drow .x{width:44px;height:44px;border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:center}
+.dhead{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:16px;font-weight:700;color:#7fd19b}
+.pmsg{font-size:15px;min-height:0}.pmsg:empty{display:none}.pmsg.ok{color:#7fd19b}.pmsg.bad{color:#ff7a84}
 .warn{font-size:15px;line-height:1.4;color:var(--muted);padding:12px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
 .list{display:grid;gap:8px}
 .item{display:grid;grid-template-columns:60px 1fr auto;gap:8px;align-items:center;padding:10px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
@@ -390,9 +405,10 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
 
     <div class="panel">
       <h3>Добавить видео</h3>
-      <button class="btn ghost" type="button" id="pickVideos"><svg class="i"><use href="#i-up"/></svg>Выбрать MP4 с устройства</button>
-      <input type="file" id="videoInput" accept="video/*" multiple>
-      <div class="row" id="vDraftRow" hidden><span id="vDraftInfo"></span><button class="btn ghost" type="button" id="clearVDraft">Очистить</button></div>
+      <label class="btn ghost pick" id="pickVideos"><svg class="i"><use href="#i-up"/></svg>Выбрать MP4 с устройства<input type="file" id="videoInput" accept="video/*,.mp4,.mov,.m4v,.webm" multiple></label>
+      <div class="pmsg" id="vPickMsg" role="status"></div>
+      <div class="dhead" id="vDraftRow" hidden><span id="vDraftInfo"></span><button class="btn ghost" type="button" id="clearVDraft">Очистить всё</button></div>
+      <div class="dlist" id="vDraftList"></div>
       <label>Или ссылки на видео (прямая ссылка на MP4/WebM либо на HTML-страницу с видео), по одной в строке<textarea id="urlInput" rows="3" placeholder="videos/clip1.mp4, https://…/video.mp4, ссылка на YouTube или https://…/page.html" inputmode="url" autocapitalize="off"></textarea></label>
       <button class="btn red" type="button" id="addUrl"><svg class="i"><use href="#i-plus"/></svg>Опубликовать видео</button>
       <p class="warn">С устройства: до 90 МБ на файл (лимит GitHub). Для раздела «Длинные видео» это тоже до 90 МБ. Без подключённого GitHub видео с устройства видно только до перезагрузки страницы.</p>
@@ -401,9 +417,10 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     <div class="panel">
       <h3>Добавить фото</h3>
       <label>Ссылки на фото, по одной в строке<textarea id="photoUrls" rows="3" placeholder="photos/1.jpg или https://…/photo.jpg"></textarea></label>
-      <button class="btn ghost" type="button" id="pickPhotos"><svg class="i"><use href="#i-up"/></svg>Выбрать фото с устройства</button>
-      <input type="file" id="photoInput" accept="image/*" multiple>
-      <div class="row" id="draftRow" hidden><span id="draftInfo"></span><button class="btn ghost" type="button" id="clearDraft">Очистить</button></div>
+      <label class="btn ghost pick" id="pickPhotos"><svg class="i"><use href="#i-up"/></svg>Выбрать фото с устройства<input type="file" id="photoInput" accept="image/*,.heic,.heif" multiple></label>
+      <div class="pmsg" id="pPickMsg" role="status"></div>
+      <div class="dhead" id="draftRow" hidden><span id="draftInfo"></span><button class="btn ghost" type="button" id="clearDraft">Очистить всё</button></div>
+      <div class="dlist" id="draftList"></div>
       <label>Текст под фото (необязательно)<textarea id="photoText" rows="3" maxlength="500" placeholder="Подпись, которая будет внизу белым цветом"></textarea></label>
       <button class="btn red" type="button" id="addPhotos"><svg class="i"><use href="#i-plus"/></svg>Опубликовать фото</button>
     </div>
@@ -751,7 +768,24 @@ const BLOCKED_HOSTS = /(^|\.)(youtube\.com|youtu\.be|tiktok\.com|instagram\.com|
 const CANT_IMPORT = 'Эту ссылку нельзя импортировать напрямую. Для импорта понадобится серверная интеграция или загрузка собственного MP4-файла.';
 let videoDraft = [];
 const VIDEO_EXT = /\.(mp4|webm|m4v|mov|ogv)$/i, MAX_VIDEO = 90 * 1024 * 1024;
-function renderVDraft() { $('#vDraftRow').hidden = !videoDraft.length; $('#vDraftInfo').textContent = 'Выбрано с устройства: ' + videoDraft.length; }
+function fmtMb(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' МБ' : Math.max(1, Math.round(n / 1024)) + ' КБ'; }
+function pickMsg(id, text, kind) { const m = $(id); m.textContent = text || ''; m.className = 'pmsg' + (kind ? ' ' + kind : ''); }
+// Список выбранных файлов прямо под кнопкой: миниатюра, имя, размер и кнопка «убрать»
+function paintDraft(list, arr, box, row, info, isVideo, onRemove) {
+  row.hidden = !arr.length; info.textContent = arr.length ? 'Выбрано: ' + arr.length : '';
+  box.replaceChildren();
+  arr.forEach((d, n) => {
+    const r = el('div', 'drow'), th = el('div', 'dth'), dn = el('div', 'dn'), big = isVideo && d.file.size > MAX_VIDEO;
+    th.appendChild(icon(isVideo ? 'i-film' : 'i-up'));
+    if (isVideo) { const tv = document.createElement('video'); tv.muted = true; tv.playsInline = true; tv.preload = 'metadata'; tv.setAttribute('playsinline', ''); tv.tabIndex = -1; tv.addEventListener('error', () => tv.remove()); tv.src = d.url + '#t=0.1'; th.appendChild(tv); }
+    else { const im = document.createElement('img'); im.alt = ''; im.src = d.url; im.addEventListener('error', () => im.remove()); th.appendChild(im); }
+    dn.append(el('strong', '', (n + 1) + '. ' + (d.name || (isVideo ? 'видео' : 'фото'))), el('small', big ? 'bad' : '', fmtMb(d.file.size) + (big ? ' · больше 90 МБ, не загрузится' : '')));
+    const x = el('button', 'x'); x.type = 'button'; x.setAttribute('aria-label', 'Убрать из выбранных'); x.appendChild(icon('i-close'));
+    x.addEventListener('click', () => { URL.revokeObjectURL(d.url); arr.splice(n, 1); onRemove(); });
+    r.append(th, dn, x); box.appendChild(r);
+  });
+}
+function renderVDraft() { if (!videoDraft.length) pickMsg('#vPickMsg', ''); paintDraft(null, videoDraft, $('#vDraftList'), $('#vDraftRow'), $('#vDraftInfo'), true, renderVDraft); }
 function absUrl(base, v) { try { return new URL(v, base).href; } catch (e) { return null; } }
 // Ссылка может вести на сам файл или на HTML-страницу с видео
 async function resolveVideoUrl(raw) {
@@ -1011,19 +1045,26 @@ function initAdmin() {
   const paintCat = () => { document.querySelectorAll('#catSeg button').forEach(b => b.classList.toggle('on', b.dataset.cat === adminCat)); $('#longTitleBox').hidden = adminCat !== 'long'; };
   document.querySelectorAll('#catSeg button').forEach(b => b.addEventListener('click', () => { adminCat = b.dataset.cat; try { localStorage.setItem('grandpa.cat.v1', adminCat); } catch (e) {} paintCat(); }));
   paintCat();
-  $('#pickPhotos').addEventListener('click', () => $('#photoInput').click());
-  $('#photoInput').addEventListener('change', async e => {
-    const files = [...e.target.files]; e.target.value = ''; let bad = 0;
-    if (files.length) setAdminMsg('Обрабатываем фото…');
-    for (const f0 of files) {
-      if (!/^image\//.test(f0.type) && !/\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f0.name || '')) { bad++; continue; }
-      const f = await shrinkImage(f0); photoDraft.push({ url: URL.createObjectURL(f), name: f.name, file: f });
-    }
-    renderDraft();
-    if (bad) setAdminMsg('Часть файлов пропущена: это не изображения.', 'bad');
-    else setAdminMsg('Фото выбраны. Напишите подпись и нажмите «Опубликовать фото».', 'ok');
-  });
-  $('#clearDraft').addEventListener('click', () => { photoDraft.forEach(d => URL.revokeObjectURL(d.url)); photoDraft = []; renderDraft(); });
+  // Выбранные файлы забираем сразу и из change, и из input, и после возвращения в приложение: на части телефонов событие приходит не всегда
+  let pBusy = false;
+  const takePhotos = async () => {
+    const inp = $('#photoInput'), files = inp.files ? [...inp.files] : []; if (!files.length || pBusy) return;
+    inp.value = ''; pBusy = true; let bad = 0, n = 0;
+    try {
+      for (const f0 of files) {
+        n++; pickMsg('#pPickMsg', 'Обрабатываем фото ' + n + ' из ' + files.length + '…');
+        if (!/^image\//.test(f0.type) && !/\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f0.name || '')) { bad++; continue; }
+        const f = await shrinkImage(f0); photoDraft.push({ url: URL.createObjectURL(f), name: f.name || f0.name, file: f }); renderDraft();
+      }
+    } catch (e) { pickMsg('#pPickMsg', 'Не удалось прочитать фото: ' + ((e && e.message) || e), 'bad'); pBusy = false; return; }
+    pBusy = false; renderDraft();
+    if (bad) pickMsg('#pPickMsg', 'Часть файлов пропущена: это не изображения.', 'bad');
+    else pickMsg('#pPickMsg', 'Выбрано фото: ' + photoDraft.length + '. Напишите подпись и нажмите «Опубликовать фото».', 'ok');
+    try { $('#draftRow').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  };
+  ['change', 'input'].forEach(n => $('#photoInput').addEventListener(n, takePhotos));
+  window.__takePhotos = takePhotos;
+  $('#clearDraft').addEventListener('click', () => { photoDraft.forEach(d => URL.revokeObjectURL(d.url)); photoDraft = []; renderDraft(); pickMsg('#pPickMsg', ''); });
   $('#addPhotos').addEventListener('click', addPhotoPost);
   $('#ghSave').addEventListener('click', saveGh);
   $('#ghOff').addEventListener('click', () => { gh.token = ''; persistGh(); renderGh(); setAdminMsg('GitHub отключён.', 'ok'); });
@@ -1035,18 +1076,23 @@ function initAdmin() {
   try { if (sessionStorage.getItem(ADMIN_KEY) === '1') revealAdminTab(true); } catch (e) {}
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !gate.hidden) closeModal(); });
   $('#addUrl').addEventListener('click', addByUrl);
-  $('#pickVideos').addEventListener('click', () => { const i = $('#videoInput'); i.value = ''; i.click(); });
-  $('#videoInput').addEventListener('change', e => {
-    const files = [...e.target.files]; let bad = 0;
+  const takeVideos = () => {
+    const inp = $('#videoInput'), files = inp.files ? [...inp.files] : []; if (!files.length) return;
+    inp.value = ''; let bad = 0;
     for (const f of files) {
       if (f.type && !/^video\//.test(f.type) && !VIDEO_EXT.test(f.name || '')) { bad++; continue; }
       videoDraft.push({ url: URL.createObjectURL(f), name: f.name || 'видео', file: f });
     }
     renderVDraft();
-    if (bad) setAdminMsg('Часть файлов пропущена: это не видео.', 'bad');
-    else if (files.length) setAdminMsg('Видео выбрано. Выберите дату и нажмите «Опубликовать видео».', 'ok');
-  });
-  $('#clearVDraft').addEventListener('click', () => { videoDraft.forEach(d => URL.revokeObjectURL(d.url)); videoDraft = []; renderVDraft(); });
+    if (bad) pickMsg('#vPickMsg', 'Часть файлов пропущена: это не видео.', 'bad');
+    else pickMsg('#vPickMsg', 'Выбрано видео: ' + videoDraft.length + '. Выберите дату и нажмите «Опубликовать видео».', 'ok');
+    try { $('#vDraftRow').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  };
+  ['change', 'input'].forEach(n => $('#videoInput').addEventListener(n, takeVideos));
+  const recheck = () => setTimeout(() => { takeVideos(); window.__takePhotos && window.__takePhotos(); }, 500);
+  window.addEventListener('focus', recheck); window.addEventListener('pageshow', recheck);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
+  $('#clearVDraft').addEventListener('click', () => { videoDraft.forEach(d => URL.revokeObjectURL(d.url)); videoDraft = []; renderVDraft(); pickMsg('#vPickMsg', ''); });
   window.addEventListener('beforeunload', () => videos.forEach(revokeLocal));
 }
 
@@ -1224,7 +1270,7 @@ function maybeTutorial() {
   const v = feed[index]; if (v && v.type === 'photo' && v.images.length > 1) showTutorial('photo');
 }
 let photoDraft = [];
-function renderDraft() { $('#draftRow').hidden = !photoDraft.length; $('#draftInfo').textContent = 'Выбрано с устройства: ' + photoDraft.length; }
+function renderDraft() { if (!photoDraft.length) pickMsg('#pPickMsg', ''); paintDraft(null, photoDraft, $('#draftList'), $('#draftRow'), $('#draftInfo'), false, renderDraft); }
 function checkImage(url) {
   return new Promise(resolve => {
     const im = new Image(), t = setTimeout(() => resolve(false), 10000);
