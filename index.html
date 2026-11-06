@@ -391,7 +391,7 @@ textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line)
     <div class="panel">
       <h3>Добавить видео</h3>
       <button class="btn ghost" type="button" id="pickVideos"><svg class="i"><use href="#i-up"/></svg>Выбрать MP4 с устройства</button>
-      <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,video/*,.mp4,.m4v,.mov,.webm" multiple>
+      <input type="file" id="videoInput" accept="video/*" multiple>
       <div class="row" id="vDraftRow" hidden><span id="vDraftInfo"></span><button class="btn ghost" type="button" id="clearVDraft">Очистить</button></div>
       <label>Или ссылки на видео (прямая ссылка на MP4/WebM либо на HTML-страницу с видео), по одной в строке<textarea id="urlInput" rows="3" placeholder="videos/clip1.mp4, https://…/video.mp4, ссылка на YouTube или https://…/page.html" inputmode="url" autocapitalize="off"></textarea></label>
       <button class="btn red" type="button" id="addUrl"><svg class="i"><use href="#i-plus"/></svg>Опубликовать видео</button>
@@ -774,18 +774,19 @@ async function resolveVideoUrl(raw) {
 async function faststart(file) {
   try {
     if (!/\.(mp4|m4v|mov)$/i.test(file.name || '') && !/mp4|quicktime/.test(file.type || '')) return file;
-    const buf = new Uint8Array(await file.arrayBuffer()), dv = new DataView(buf.buffer), boxes = [], T = (a, o) => String.fromCharCode(a[o], a[o + 1], a[o + 2], a[o + 3]);
+    const boxes = [], T = (a, o) => String.fromCharCode(a[o], a[o + 1], a[o + 2], a[o + 3]);
     let p = 0;
-    while (p + 8 <= buf.length) {
-      let size = dv.getUint32(p), hdr = 8; const type = T(buf, p + 4);
-      if (size === 1) { if (p + 16 > buf.length) return file; size = Number(dv.getBigUint64(p + 8)); hdr = 16; } else if (size === 0) size = buf.length - p;
-      if (size < hdr || p + size > buf.length) return file;
+    while (p + 8 <= file.size) {
+      const h = new Uint8Array(await file.slice(p, Math.min(p + 16, file.size)).arrayBuffer()), hv = new DataView(h.buffer);
+      let size = hv.getUint32(0), hdr = 8; const type = T(h, 4);
+      if (size === 1) { if (h.length < 16) return file; size = Number(hv.getBigUint64(8)); hdr = 16; } else if (size === 0) size = file.size - p;
+      if (size < hdr || p + size > file.size) return file;
       boxes.push({ type, start: p, size, hdr }); p += size;
     }
-    if (p !== buf.length || boxes.some(b => b.type === 'moof')) return file;
+    if (p !== file.size || boxes.some(b => b.type === 'moof')) return file;
     const mi = boxes.findIndex(b => b.type === 'moov'), di = boxes.findIndex(b => b.type === 'mdat');
     if (mi < 0 || di < 0 || mi < di) return file; // moov уже в начале
-    const moov = boxes[mi], mc = buf.slice(moov.start, moov.start + moov.size), mv = new DataView(mc.buffer), CONT = ['trak', 'mdia', 'minf', 'stbl'];
+    const moov = boxes[mi], mc = new Uint8Array(await file.slice(moov.start, moov.start + moov.size).arrayBuffer()), mv = new DataView(mc.buffer), CONT = ['trak', 'mdia', 'minf', 'stbl'];
     const patch = (from, to) => {
       let q = from;
       while (q + 8 <= to) {
@@ -801,9 +802,9 @@ async function faststart(file) {
     };
     if (!patch(moov.hdr, moov.size)) return file;
     const parts = [], first = boxes[0].type === 'ftyp' ? 0 : -1;
-    if (first === 0) parts.push(buf.subarray(boxes[0].start, boxes[0].start + boxes[0].size));
+    if (first === 0) parts.push(file.slice(boxes[0].start, boxes[0].start + boxes[0].size));
     parts.push(mc);
-    boxes.forEach((b, i) => { if (i !== mi && i !== first) parts.push(buf.subarray(b.start, b.start + b.size)); });
+    boxes.forEach((b, i) => { if (i !== mi && i !== first) parts.push(file.slice(b.start, b.start + b.size)); });
     return new File(parts, file.name, { type: file.type || 'video/mp4' });
   } catch (e) { return file; }
 }
@@ -819,12 +820,13 @@ async function importRemote(url) { // скачивает ролик по пря�
   if (!VIDEO_EXT.test(name)) name = 'video' + (/webm/i.test(blob.type) ? '.webm' : '.mp4');
   return new File([blob], name, { type: /^video\//.test(blob.type) ? blob.type : 'video/mp4' });
 }
-async function addByUrl() {
+async function addByUrlInner() {
   const date = $('#dateInput').value;
   if (!date) return setAdminMsg('Выберите дату публикации.', 'bad');
   const raws = $('#urlInput').value.split('\n').map(x => x.trim()).filter(Boolean);
   if (!raws.length && !videoDraft.length) return setAdminMsg('Выберите видео с устройства или вставьте ссылку.', 'bad');
   if (raws.length + videoDraft.length > 50) return setAdminMsg('За раз не больше 50 видео (сейчас выбрано ' + (raws.length + videoDraft.length) + '). Добавьте остальные следующим заходом.', 'bad');
+  if (ghOn() && videoDraft.length) { setAdminMsg('Проверяем токен GitHub…'); const tokErr = await ghCheck(); if (tokErr) return tokenDead(tokErr); }
   const btn = $('#addUrl'); btn.disabled = true; let ok = 0, bad = [], failMsg = '', copied = 0, kept = 0, ytForced = false;
   const tIn = $('#longTitle').value.trim().slice(0, 80), many = raws.length + videoDraft.length > 1;
   const ttl = nm => { const t = adminCat !== 'long' ? '' : (!many && tIn ? tIn : String(nm || '').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80)); return t ? { title: t } : {}; };
@@ -872,7 +874,7 @@ async function addByUrl() {
   btn.disabled = false;
   if (ok) { sortVideos(); saveVideos(); index = 0; renderFeed(); renderAdminList(); }
   $('#urlInput').value = bad.join('\n'); if (ok) $('#longTitle').value = '';
-  if (failMsg) { if (ok) await syncGh('Добавлено видео: ' + ok + '.'); return setAdminMsg('Не удалось загрузить: ' + failMsg, 'bad'); }
+  if (failMsg) { if (ok) await syncGh('Добавлено видео: ' + ok + '.'); if (failMsg === TOKEN_BAD) tokenDead(failMsg); else setAdminMsg('Не удалось загрузить: ' + failMsg, 'bad'); return; }
   if (!ok) return setAdminMsg(CANT_IMPORT, 'bad');
   if (bad.length) toast('Не удалось добавить ссылок: ' + bad.length + '. Они остались в поле.', true, 6000);
   if (ytForced) toast('Ссылки на YouTube скачать нельзя: они добавлены в раздел «С интернетом».', true, 6000);
@@ -880,6 +882,13 @@ async function addByUrl() {
   await syncGh('Добавлено видео: ' + ok + '.');
   if (copied || kept) setAdminMsg('Добавлено видео: ' + ok + '. Скопировано на сайт: ' + copied + '.' + (kept ? ' Не удалось скопировать: ' + kept + ' (источник не разрешает). Они остались внешними ссылками и без VPN могут не открываться: скачайте такие ролики на телефон и загрузите файлом.' : ''), kept ? 'bad' : 'ok');
   if (!ghOn()) setAdminMsg('Добавлено видео: ' + ok + '.' + (hasTemp ? ' Видео с устройства пропадёт после перезагрузки: подключите GitHub.' : ' Пока видно только в этом браузере.'), 'ok');
+}
+const TOKEN_BAD = 'Токен GitHub недействителен или истёк';
+async function addByUrl() {
+  const btn = $('#addUrl');
+  try { await addByUrlInner(); }
+  catch (e) { setAdminMsg('Ошибка: ' + ((e && e.message) || e), 'bad'); }
+  finally { btn.disabled = false; }
 }
 const GH_KEY = 'grandpa.gh.v1'; let gh = { repo: '', branch: 'main', token: '' };
 try { gh = { ...gh, ...JSON.parse(localStorage.getItem(GH_KEY)) }; } catch (e) {}
@@ -899,27 +908,58 @@ async function ghApi(path, method, body) {
   const r = await fetch('https://api.github.com/repos/' + gh.repo + '/contents/' + path + (method === 'GET' ? '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now() : ''),
     { method, headers: { Authorization: 'Bearer ' + gh.token, Accept: 'application/vnd.github+json' }, body: body ? JSON.stringify(body) : undefined });
   if (r.status === 404 && method === 'GET') return null;
-  if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} const er = new Error(r.status === 401 ? 'Неверный или просроченный токен' : r.status === 403 ? 'У токена нет права записи или лимит превышен' : r.status === 404 ? 'Репозиторий или ветка не найдены' : (m || 'Ошибка ' + r.status)); er.status = r.status; er.raw = m; er.ra = +r.headers.get('retry-after') || 0; throw er; }
+  if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} const er = new Error(r.status === 401 ? TOKEN_BAD : r.status === 403 ? 'У токена нет права записи или лимит превышен' : r.status === 404 ? 'Репозиторий или ветка не найдены' : (m || 'Ошибка ' + r.status)); er.status = r.status; er.raw = m; er.ra = +r.headers.get('retry-after') || 0; throw er; }
   return r.json();
 }
 const fileToB64 = f => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = () => no(new Error('Не удалось прочитать файл')); fr.readAsDataURL(f); });
 const isRate = e => (e.status === 403 || e.status === 429) && /rate limit|secondary|abuse|too many/i.test(e.raw || e.message);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+function extFor(file) {
+  const m = /\.([a-z0-9]{2,5})$/i.exec(file.name || ''); if (m) return '.' + m[1].toLowerCase();
+  const t = (file.type || '').toLowerCase();
+  return /webm/.test(t) ? '.webm' : /quicktime/.test(t) ? '.mov' : /png/.test(t) ? '.png' : /webp/.test(t) ? '.webp' : /gif/.test(t) ? '.gif' : /^image\//.test(t) ? '.jpg' : '.mp4';
+}
+// Собираем JSON с base64 по кусочкам: на телефоне большой файл иначе съедает всю память и вкладка молча «умирает»
+async function buildBody(file, message, branch) {
+  const STEP = 3 * 256 * 1024, parts = ['{"message":' + JSON.stringify(message) + ',"branch":' + JSON.stringify(branch) + ',"content":"'];
+  for (let o = 0; o < file.size; o += STEP) {
+    const u = new Uint8Array(await file.slice(o, o + STEP).arrayBuffer()); let bin = '';
+    for (let k = 0; k < u.length; k += 8192) bin += String.fromCharCode.apply(null, u.subarray(k, k + 8192));
+    parts.push(new Blob([btoa(bin)]));
+  }
+  parts.push('"}');
+  return new Blob(parts, { type: 'text/plain;charset=UTF-8' });
+}
 async function ghUpload(dir, file, onProg, onWait) {
-  const m = /\.([a-z0-9]{2,5})$/i.exec(file.name || ''), path = dir + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + (m ? '.' + m[1].toLowerCase() : '');
-  const body = JSON.stringify({ message: 'Добавлен файл ' + path, content: await fileToB64(file), branch: gh.branch });
+  const path = dir + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + extFor(file);
+  let body; try { body = await buildBody(file, 'Добавлен файл ' + path, gh.branch); } catch (e) { throw new Error('Не удалось прочитать файл'); }
   const send = () => new Promise((ok, no) => {
     const x = new XMLHttpRequest(); x.open('PUT', 'https://api.github.com/repos/' + gh.repo + '/contents/' + path);
     x.setRequestHeader('Authorization', 'Bearer ' + gh.token); x.setRequestHeader('Accept', 'application/vnd.github+json');
     if (x.upload && onProg) x.upload.onprogress = e => { if (e.lengthComputable) onProg(e.loaded / e.total); };
     x.onload = () => { if (x.status >= 200 && x.status < 300) return ok(); let msg = ''; try { msg = JSON.parse(x.responseText).message; } catch (e) {}
-      const er = new Error(x.status === 401 ? 'Неверный или просроченный токен' : x.status === 403 ? 'У токена нет права записи или лимит превышен' : x.status === 404 ? 'Репозиторий или ветка не найдены' : (msg || 'Ошибка ' + x.status)); er.status = x.status; er.raw = msg; er.ra = +x.getResponseHeader('retry-after') || 0; no(er); };
+      const er = new Error(x.status === 401 ? TOKEN_BAD : x.status === 403 ? 'У токена нет права записи или лимит превышен' : x.status === 404 ? 'Репозиторий или ветка не найдены' : (msg || 'Ошибка ' + x.status)); er.status = x.status; er.raw = msg; er.ra = +x.getResponseHeader('retry-after') || 0; no(er); };
     x.onerror = () => no(new Error('Нет соединения')); x.send(body);
   });
   for (let a = 0; ; a++) { try { await send(); break; } catch (e) {
     if (isRate(e) && a < 8) { for (let t = Math.min(Math.max(e.ra || 30, 20), 90); t > 0; t--) { if (onWait) onWait('Ждём GitHub ' + t + ' с'); await sleep(1000); } continue; }
     if (a >= 5 || !(!e.status || e.status === 409 || e.status >= 500 || /expected|conflict/i.test(e.message))) throw e; await sleep(1500 * (a + 1)); } }
   return path;
+}
+// Проверка токена ДО загрузки: если он умер, сразу говорим об этом, а не после чтения большого файла
+async function ghCheck() {
+  try {
+    const r = await fetch('https://api.github.com/repos/' + gh.repo, { cache: 'no-store', headers: { Authorization: 'Bearer ' + gh.token, Accept: 'application/vnd.github+json' } });
+    if (r.status === 401) return TOKEN_BAD;
+    if (r.status === 404) return 'Репозиторий не найден или у токена нет к нему доступа';
+    if (r.ok) { const d = await r.json(); if (d.permissions && !d.permissions.push) return 'У токена нет права записи (нужно Contents: Read and write)'; }
+  } catch (e) {}
+  return '';
+}
+function tokenDead(msg) {
+  const full = msg.replace(/[.\s]+$/, '') + '. Откройте блок «Публикация для всех» вверху, вставьте новый токен и нажмите «Подключить».';
+  $('#ghToken').value = ''; $('#ghState').textContent = full; setAdminMsg(full, 'bad');
+  try { $('#ghState').scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
 }
 async function ghPublishList() {
   const cur = await ghApi('videos.json', 'GET');
@@ -995,12 +1035,12 @@ function initAdmin() {
   try { if (sessionStorage.getItem(ADMIN_KEY) === '1') revealAdminTab(true); } catch (e) {}
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !gate.hidden) closeModal(); });
   $('#addUrl').addEventListener('click', addByUrl);
-  $('#pickVideos').addEventListener('click', () => $('#videoInput').click());
+  $('#pickVideos').addEventListener('click', () => { const i = $('#videoInput'); i.value = ''; i.click(); });
   $('#videoInput').addEventListener('change', e => {
-    const files = [...e.target.files]; e.target.value = ''; let bad = 0;
+    const files = [...e.target.files]; let bad = 0;
     for (const f of files) {
-      if (!/^video\//.test(f.type) && !VIDEO_EXT.test(f.name || '')) { bad++; continue; }
-      videoDraft.push({ url: URL.createObjectURL(f), name: f.name, file: f });
+      if (f.type && !/^video\//.test(f.type) && !VIDEO_EXT.test(f.name || '')) { bad++; continue; }
+      videoDraft.push({ url: URL.createObjectURL(f), name: f.name || 'видео', file: f });
     }
     renderVDraft();
     if (bad) setAdminMsg('Часть файлов пропущена: это не видео.', 'bad');
@@ -1209,6 +1249,7 @@ async function addPhotoPost() {
   if (!ok) return setAdminMsg('Одно из фото не открывается. Источник мог запретить показ на чужих сайтах.', 'bad');
   let hasLocal = photoDraft.length > 0, images = all, prevImages;
   if (hasLocal && ghOn()) {
+    setAdminMsg('Проверяем токен GitHub…'); const tokErr = await ghCheck(); if (tokErr) return tokenDead(tokErr);
     btn.disabled = true; setAdminMsg('Загружаем фото: 0 из ' + photoDraft.length);
     const box = $('#upList'); box.replaceChildren();
     const rows = photoDraft.map(d => { const r = el('div', 'up wait'), t = el('div', 't'), p = el('span', 'p', 'В очереди'); t.append(el('span', 'n', d.file.name || 'фото'), p); const b = el('div', 'bar'); b.append(document.createElement('i')); r.append(t, b); box.append(r); return { r, p, b: b.firstChild }; });
@@ -1217,7 +1258,7 @@ async function addPhotoPost() {
         try { if (d.file.size > 25 * 1024 * 1024) throw new Error('Фото больше 25 МБ'); paths.push(await ghUpload('photos', d.file, q => { const v = Math.round(q * 100); row.b.style.width = v + '%'; row.p.textContent = v + '%'; }, m => { row.p.textContent = m; })); row.r.className = 'up done'; row.p.textContent = 'Готово ✓'; setAdminMsg('Загружаем фото: ' + (++n) + ' из ' + photoDraft.length); await sleep(800); }
         catch (e) { row.r.className = 'up err'; row.p.textContent = e.message; throw e; } }
       images = urls.concat(paths); prevImages = all; hasLocal = false; }
-    catch (e) { btn.disabled = false; return setAdminMsg('Не удалось загрузить: ' + e.message, 'bad'); }
+    catch (e) { btn.disabled = false; if (e.message === TOKEN_BAD) return tokenDead(e.message); return setAdminMsg('Не удалось загрузить: ' + e.message, 'bad'); }
     btn.disabled = false;
   }
   // TODO(backend): загрузка фото в объектное хранилище и запись публикации в БД.
