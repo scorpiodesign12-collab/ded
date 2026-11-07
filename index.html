@@ -942,7 +942,7 @@ async function ghApi(path, method, body) {
   const r = await fetch('https://api.github.com/repos/' + gh.repo + '/contents/' + path + (method === 'GET' ? '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now() : ''),
     { method, headers: { Authorization: 'Bearer ' + gh.token, Accept: 'application/vnd.github+json' }, body: body ? JSON.stringify(body) : undefined });
   if (r.status === 404 && method === 'GET') return null;
-  if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} const er = new Error(r.status === 401 ? TOKEN_BAD : r.status === 403 ? 'У токена нет права записи или лимит превышен' : r.status === 404 ? 'Репозиторий или ветка не найдены' : (m || 'Ошибка ' + r.status)); er.status = r.status; er.raw = m; er.ra = +r.headers.get('retry-after') || 0; throw er; }
+  if (!r.ok) { let m = ''; try { m = (await r.json()).message; } catch (e) {} const er = new Error(r.status === 401 ? TOKEN_BAD : r.status === 403 ? ('GitHub отказал (403): ' + (m || 'нет права записи') + '. Проверьте токен: Contents = Read and write и доступ к нужному репозиторию') : r.status === 404 ? 'Репозиторий или ветка не найдены' : (m || 'Ошибка ' + r.status)); er.status = r.status; er.raw = m; er.ra = +r.headers.get('retry-after') || 0; throw er; }
   return r.json();
 }
 const fileToB64 = f => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = () => no(new Error('Не удалось прочитать файл')); fr.readAsDataURL(f); });
@@ -972,7 +972,7 @@ async function ghUpload(dir, file, onProg, onWait) {
     x.setRequestHeader('Authorization', 'Bearer ' + gh.token); x.setRequestHeader('Accept', 'application/vnd.github+json');
     if (x.upload && onProg) x.upload.onprogress = e => { if (e.lengthComputable) onProg(e.loaded / e.total); };
     x.onload = () => { if (x.status >= 200 && x.status < 300) return ok(); let msg = ''; try { msg = JSON.parse(x.responseText).message; } catch (e) {}
-      const er = new Error(x.status === 401 ? TOKEN_BAD : x.status === 403 ? 'У токена нет права записи или лимит превышен' : x.status === 404 ? 'Репозиторий или ветка не найдены' : (msg || 'Ошибка ' + x.status)); er.status = x.status; er.raw = msg; er.ra = +x.getResponseHeader('retry-after') || 0; no(er); };
+      const er = new Error(x.status === 401 ? TOKEN_BAD : x.status === 403 ? ('GitHub отказал (403): ' + (msg || 'нет права записи') + '. Проверьте токен: Contents = Read and write и доступ к нужному репозиторию') : x.status === 404 ? 'Репозиторий или ветка не найдены' : (msg || 'Ошибка ' + x.status)); er.status = x.status; er.raw = msg; er.ra = +x.getResponseHeader('retry-after') || 0; no(er); };
     x.onerror = () => no(new Error('Нет соединения')); x.send(body);
   });
   for (let a = 0; ; a++) { try { await send(); break; } catch (e) {
